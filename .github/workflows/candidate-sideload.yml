@@ -1,0 +1,62 @@
+name: Sideload Candidate
+
+# Fork-local convenience lane.
+#
+# Builds the `sideloadCandidate` variant: minified, non-debuggable, and using a
+# distinct applicationId so it installs alongside an existing release instead of
+# clashing on the signing certificate.
+#
+# This is not part of the upstream CI surface and intentionally does not consume
+# the repository's preset inputs; it exists because the on-demand preset list
+# has no candidate entry.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sideload-candidate-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  candidate:
+    name: Assemble sideload candidate
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: gradle/actions/setup-gradle@v6.3.0
+        with:
+          cache-read-only: true
+
+      - name: Assemble sideload candidate
+        run: ./gradlew :app:assembleSideloadCandidate --console=plain
+
+      # Upload before verification so a signing-probe hiccup cannot cost the build.
+      - name: Upload candidate APKs
+        uses: actions/upload-artifact@v7
+        with:
+          name: sideload-candidate-${{ github.sha }}
+          path: app/build/outputs/apk/sideload/candidate/*.apk
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Report artifact and signing certificate
+        run: |
+          set -uo pipefail
+          APK="$(ls app/build/outputs/apk/sideload/candidate/*.apk | head -n 1)"
+          ls -lh "$APK"
+          SDK="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
+          if [ -n "$SDK" ] && [ -d "$SDK/build-tools" ]; then
+            APKSIGNER="$(ls -d "$SDK"/build-tools/* | sort -V | tail -n 1)/apksigner"
+            "$APKSIGNER" verify --print-certs "$APK" || true
+          else
+            echo "build-tools not found; skipping certificate probe"
+          fi
