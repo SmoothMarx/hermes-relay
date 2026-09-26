@@ -125,7 +125,6 @@ import com.hermesandroid.relay.network.shared.TailnetEnforcer
 import com.hermesandroid.relay.network.shared.TailnetNetworkStatus
 import com.hermesandroid.relay.network.shared.TailnetRoutePolicy
 import com.hermesandroid.relay.network.shared.HermesClients
-import com.hermesandroid.relay.network.shared.enforceTailnetPolicy
 import com.hermesandroid.relay.network.upstream.ServerCapabilities
 import com.hermesandroid.relay.network.relay.RelayHttpClient
 import com.hermesandroid.relay.network.relay.RelayUrlDeriver
@@ -1656,11 +1655,18 @@ class ConnectionViewModel(application: Application) : AndroidViewModel(applicati
             .firstOrNull { it.pluginProxyRoutesOrNull()?.authority == requestAuthority }
             ?: return null
         val routes = candidate.pluginProxyRoutesOrNull() ?: return null
-        val configuredBuilder = (baseClient?.newBuilder() ?: OkHttpClient.Builder())
-            .connectTimeout(20, TimeUnit.SECONDS)
-            .readTimeout(0, TimeUnit.MILLISECONDS)
-            .pingInterval(30, TimeUnit.SECONDS)
-            .enforceTailnetPolicy()
+        // Route the base client through HermesClients.build so the enforcer registers
+        // it (idle pooled connections are evicted on a policy/network generation bump).
+        // buildPluginProxyClient/buildHermesReachClient only accept a Builder, so hand
+        // them the registered client's newBuilder(); newBuilder() preserves the tailnet
+        // socket factory, DNS and address guard, and shares the registered client's
+        // connection pool, so a generation bump evicts this client's idle connections too.
+        val configuredBuilder = HermesClients.build(
+            (baseClient?.newBuilder() ?: OkHttpClient.Builder())
+                .connectTimeout(20, TimeUnit.SECONDS)
+                .readTimeout(0, TimeUnit.MILLISECONDS)
+                .pingInterval(30, TimeUnit.SECONDS),
+        ).newBuilder()
         val sessionTokenProvider = {
             (authManager.authState.value as? AuthState.Paired)?.token
         }
