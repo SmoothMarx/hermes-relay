@@ -6,6 +6,15 @@ Hermes-Relay stores its settings using Android's DataStore, Android Keystore (fo
 
 These are configured during onboarding or from the **Settings → Gateways** screen. That screen is the single authoritative home for everything connection-related. Each saved Hermes server appears as its own card in the list; the currently active card expands inline to surface its configuration.
 
+Directly beneath **Gateways**, the **Always connect via Tailscale** row opens a
+per-connection subpage. It holds the only switch for that setting: while it is on,
+that connection uses Tailscale routes only and refuses every other route, showing
+a blocked state with remediation (install Tailscale, open Tailscale, add a Tailscale
+route, or turn off and retry) instead of falling back. It applies to the active
+connection; the connection's **Routes** tab carries a read-only status row that
+opens the same subpage. Which apps the device sends through Tailscale is configured
+in the Tailscale app's own per-app routing, not here.
+
 Hermes-Relay now treats connection auth as three related but separate contexts:
 
 - **Dashboard sign-in** (`:9119`) — upstream-preferred remote identity for the vanilla dashboard/desktop path. Current gateways use a native bearer when `native_pkce` is advertised; compatibility gateways use exact-origin cookies. Both mint short-lived `/api/ws` tickets for Chat, sessions, Manage, and standard voice. Android supports username/password and redirect providers such as Nous/OIDC for this surface.

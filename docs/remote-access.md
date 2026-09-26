@@ -15,7 +15,11 @@ ordered list of endpoint candidates and the phone picks the
 highest-priority reachable one at connect time. Re-probing happens
 automatically on network change (`ConnectivityManager.NetworkCallback`)
 so walking out of the house onto LTE seamlessly hops from the LAN
-candidate to the Tailscale (or public) one. See `docs/decisions.md` §24
+candidate to the Tailscale (or public) one. A connection can opt out of that
+hop: with the per-connection **Always connect via Tailscale** setting on, only
+tailnet candidates are eligible, and a non-tailnet route is refused with a
+visible blocked state instead of being used as a fallback. See
+`docs/decisions.md` §24
 for the wire format and priority semantics.
 
 **First-class Tailscale** (ADR 25) is the primary supported remote path
@@ -337,7 +341,10 @@ Force-override from the pair command: `--mode lan` (LAN only),
 `--mode tailscale` (Tailscale only), `--mode public` (requires
 `--public-url`; emits only that). Useful when you explicitly want one
 candidate in the QR — e.g. pairing a phone that should never fall back
-to LAN because it's not on your home network.
+to LAN because it's not on your home network. For the same intent applied
+later on the phone, turn on the per-connection **Always connect via
+Tailscale** setting: it refuses non-Tailscale routes instead of merely
+leaving them out of the QR.
 
 ### Promoting a role to priority 0 — `--prefer`
 

@@ -110,7 +110,7 @@ The wizard probes everything and finishes with a capability card:
 One dashboard sign-in unlocks Chat, Manage, sessions, and standard voice. That's
 the whole Vanilla Hermes setup.
 
-> **Going places?** Add the Dashboard's Tailscale address — for example `http://100.x.y.z:9119` or a separately published `https://host.ts.net` URL — under **Settings → Gateways → Routes**. Android tests it as a Dashboard route; no API server or API key is required. The app uses LAN at home and switches routes automatically when you leave. See [Remote access](https://hermes-relay.dev/docs/guide/remote-access).
+> **Going places?** Add the Dashboard's Tailscale address — for example `http://100.x.y.z:9119` or a separately published `https://host.ts.net` URL — under **Settings → Gateways → Routes**. Android tests it as a Dashboard route; no API server or API key is required. The app uses LAN at home and switches routes automatically when you leave. To refuse that fallback, turn on **Settings → Always connect via Tailscale** for the connection: the app then connects over Tailscale only, and shows a blocked state with fix steps instead of using a LAN or public URL. See [Remote access](https://hermes-relay.dev/docs/guide/remote-access).
 
 ### 4 · Recommended: pair Relay for the complete experience
 
@@ -193,7 +193,7 @@ tracked independently so community corrections remain easy to contribute.
 - **Streaming chat** — rides vanilla Hermes, preferring the dashboard gateway (`/api/ws`, live thinking) when signed in to Manage and falling back to API-server SSE otherwise, with live markdown, tool-call cards, session history, a searchable command palette, file attachments, quote-in-reply, conversation share, and send-while-streaming queuing.
 - **Manage your agent** — the full Hermes dashboard, native: switch models from your provider catalog, manage keys (write-only, masked, rate-limited reveal), create and edit profiles including `SOUL.md`, and browse/install/update skills. One dashboard sign-in covers it all.
 - **Hands-free voice** — talk on a vanilla install: speech rides your server's configured providers, unlocked by the same Manage sign-in. Relay-paired setups add per-profile voice and an opt-in provider-native Realtime Agent with background task handoff.
-- **Works away from home** — add a Tailscale or public URL and the app roams automatically (LAN at home, fallback elsewhere). An unreachable server gets a diagnosis, not just a red dot.
+- **Works away from home** — add a Tailscale or public URL and the app roams automatically (LAN at home, fallback elsewhere). An unreachable server gets a diagnosis, not just a red dot. Prefer Tailscale only? **Settings → Always connect via Tailscale** restricts a connection to Tailscale routes and refuses every other route.
 - **Multi-Connection + profiles** — pair multiple Hermes servers (home + work, dev + prod) and switch in one tap; overlay a profile's model + `SOUL.md` per chat.
 - **Device Control (Sideload + Hermes-Relay required)** — the agent can read the screen and act: tap, type, swipe, scroll, screenshots, clipboard, media keys, and batched macros. This is not included in the Google Play build. It is guarded by a per-app blocklist (banking/2FA blocked by default), destructive-verb confirmation, idle auto-disable, and a full activity log.
 - **Notification companion** — opt-in access so the agent can triage, summarize, and route incoming notifications.

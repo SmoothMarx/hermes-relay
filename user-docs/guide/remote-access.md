@@ -6,8 +6,10 @@ Hermes-Relay can keep one paired phone connected as it moves between LAN, Tailsc
 
 Vanilla Hermes setup saves the Dashboard/Gateway address as the standard route.
 Remote LAN, Tailscale, VPN, or public routes can be added to the same connection
-and Android uses the highest-priority reachable one. Direct API and Relay
-routes remain independently optional:
+and Android uses the highest-priority reachable one. You can also pin one
+connection to Tailscale only with **Settings -> Always connect via Tailscale**;
+it then refuses LAN, VPN, and public routes instead of falling back. Direct API
+and Relay routes remain independently optional:
 
 - **Chat, sessions, Manage, and standard voice** use the Dashboard/Gateway route and its dashboard session.
 - **Direct API/headless compatibility** uses the API server URL and bearer only for explicitly selected API-only chats.
@@ -81,6 +83,11 @@ You can also override from the phone: **Settings -> Connections -> active connec
 Generated route lists prefer available secure candidates and retain LAN as a
 fallback. A plain LAN fallback still requires its explicit acknowledgement; a
 TLS or pin failure never silently converts a secure route into a plain one.
+With **Settings -> Always connect via Tailscale** on for a connection, only
+Tailscale routes are eligible: a non-Tailscale route is refused with a visible
+blocked state, so there is no LAN or public fallback. Which apps use Tailscale
+is decided in the Tailscale app (App split tunneling, include mode) — Hermes
+Relay restricts and verifies only its own connection.
 
 ## Optional Hermes Secure Link
 

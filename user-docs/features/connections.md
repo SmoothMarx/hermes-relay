@@ -50,7 +50,9 @@ The detail screen is organized into tabs:
 - **Routes** — shows the primary Dashboard route even when no API or Relay is
   configured. LAN, Tailscale (`100.x` or `.ts.net`), and public Dashboard routes
   can be added and tested without API configuration. Optional API routes are
-  only for explicit Direct API chat on the same networks.
+  only for explicit Direct API chat on the same networks. A read-only
+  **Always connect via Tailscale** status row opens the setting; the switch
+  itself lives only under **Settings → Always connect via Tailscale**.
 - **Advanced** — optional Direct API credentials, an explicit direct
   Relay endpoint override, and the development-only insecure-connection toggle.
   Dashboard addresses stay under **Routes**. **Pair Relay** opens the same shared
@@ -158,7 +160,7 @@ won't flash a misleading "connection changed" for the same connection re-handsha
 
 ## Multi-Endpoint Pairing: One QR for Every Network
 
-A pairing QR can carry multiple endpoint candidates for the same server: LAN, Tailscale, public reverse proxy, or an operator-defined VPN route. The app stores the connection once, then chooses the highest-priority reachable route at runtime.
+A pairing QR can carry multiple endpoint candidates for the same server: LAN, Tailscale, public reverse proxy, or an operator-defined VPN route. The app stores the connection once, then chooses the highest-priority reachable route at runtime. A connection can opt out of that choice: with **Settings → Always connect via Tailscale** on, only Tailscale routes are eligible and every other route is refused with a visible blocked state instead of being used as a fallback.
 
 The split is intentional:
 

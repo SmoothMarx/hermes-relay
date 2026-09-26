@@ -360,7 +360,12 @@ and exposes fixed `/relay`, `/api`, and `/dashboard` namespaces. Each service
 retains its native credential, and Dashboard forwarding fails closed unless
 its upstream OAuth/password gate is active. Clients select secure candidates
 first and may fall back to a separately configured LAN route; the existing
-plain-route acknowledgement still applies. See
+plain-route acknowledgement still applies. One connection can also opt out of
+that fallback: with **Always connect via Tailscale** on for it (the Android row
+directly under the Settings Gateways row), only tailnet candidates are eligible
+and a non-tailnet route is refused with a visible blocked state instead of being
+used. The mode governs this app's own traffic only — which apps the device sends
+through Tailscale remains a Tailscale-app setting. See
 [`docs/security-native-proxy.md`](security-native-proxy.md).
 
 Hermes Reach is the experimental `outbound_broker` candidate for hosts that cannot
