@@ -51,6 +51,7 @@ import androidx.compose.material.icons.filled.NewReleases
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.PhoneAndroid
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.VpnKey
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -165,6 +166,7 @@ fun SettingsScreen(
     onRequestParentAccess: () -> Unit = {},
     onUpdateSupervisedPolicy: (SupervisedModePolicy) -> Unit = {},
     onNavigateToAdvancedSettings: () -> Unit = {},
+    onNavigateToTailscaleSettings: () -> Unit = {},
     onNavigateToSupervisedAppearance: () -> Unit = {},
     onNavigateToSupervisedControls: () -> Unit = {},
     // Needed by the Active Agent summary card at the top of the screen — it
@@ -574,6 +576,16 @@ fun SettingsScreen(
                 title = stringResource(R.string.settings_connections),
                 subtitle = stringResource(R.string.settings_connections_desc),
                 onClick = onNavigateToConnections,
+                isDarkTheme = isDarkTheme,
+            )
+
+            // Always connect via Tailscale sits directly under Gateways: it is a
+            // per-gateway connection policy, so it lives next to the gateway list.
+            SettingsCategoryRow(
+                icon = Icons.Filled.VpnKey,
+                title = stringResource(R.string.settings_tailscale_always_connect_title),
+                subtitle = stringResource(R.string.settings_tailscale_desc),
+                onClick = onNavigateToTailscaleSettings,
                 isDarkTheme = isDarkTheme,
             )
 
