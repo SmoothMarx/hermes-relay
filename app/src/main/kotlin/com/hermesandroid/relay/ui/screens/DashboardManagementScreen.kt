@@ -3333,7 +3333,7 @@ private fun DashboardOAuthSignInDialog(
                             }
                             val reason = TailnetEnforcer.get().checkUrl(loginUrl)
                             if (reason != null) {
-                                val message = resources.getString(R.string.tailnet_diag_blocked)
+                                val message = context.getString(R.string.tailnet_diag_blocked)
                                 statusText = message
                                 onError(message)
                             } else {
