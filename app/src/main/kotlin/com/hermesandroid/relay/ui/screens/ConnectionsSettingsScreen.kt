@@ -66,6 +66,7 @@ import com.hermesandroid.relay.data.Profile
 import com.hermesandroid.relay.data.displayLabel
 import com.hermesandroid.relay.data.gatewayRouteUrl
 import com.hermesandroid.relay.data.isDashboardOnlyRoute
+import com.hermesandroid.relay.network.shared.TailnetRoutePolicy
 import com.hermesandroid.relay.network.upstream.GatewayAvailability
 import com.hermesandroid.relay.ui.components.sameGatewayRouteBase
 import com.hermesandroid.relay.viewmodel.ConnectionViewModel
@@ -554,12 +555,20 @@ internal fun resolveGatewayCardPresentation(
     effectiveDashboardUrl: String,
 ): GatewayCardPresentation {
     val persistedStatus = connection.dashboardLastStatus
-    val selectedRoute = activeEndpoint
-        ?: connection.preferredRouteRole
-            ?.let { preferred ->
-                connection.routeCandidates.firstOrNull { it.role.equals(preferred, ignoreCase = true) }
-            }
-        ?: connection.routeCandidates.minByOrNull { it.priority }
+    val selectedRoute = if (connection.alwaysViaTailscale) {
+        // Always connect via Tailscale: never name a non-tailnet route as this gateway's route.
+        activeEndpoint?.takeIf { TailnetRoutePolicy.isEligible(it) }
+            ?: connection.routeCandidates
+                .filter { TailnetRoutePolicy.isEligible(it) }
+                .minByOrNull { it.priority }
+    } else {
+        activeEndpoint
+            ?: connection.preferredRouteRole
+                ?.let { preferred ->
+                    connection.routeCandidates.firstOrNull { it.role.equals(preferred, ignoreCase = true) }
+                }
+            ?: connection.routeCandidates.minByOrNull { it.priority }
+    }
     val selectedGatewayUrl = selectedRoute?.gatewayRouteUrl()
     val effectiveGatewayUrl = effectiveDashboardUrl.trim().trimEnd('/').takeIf { it.isNotBlank() }
     val routeUrl = if (active) {
