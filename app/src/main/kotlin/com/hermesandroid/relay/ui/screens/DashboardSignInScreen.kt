@@ -57,6 +57,7 @@ import com.hermesandroid.relay.diagnostics.DiagnosticSeverity
 import com.hermesandroid.relay.diagnostics.DiagnosticsLog
 import com.hermesandroid.relay.ui.components.ConnectionSetupTimeline
 import com.hermesandroid.relay.ui.components.ConnectionSetupTimelineStep
+import com.hermesandroid.relay.network.shared.TailnetEnforcer
 import com.hermesandroid.relay.network.upstream.DashboardApiClient
 import com.hermesandroid.relay.network.upstream.DashboardAuthProvider
 import com.hermesandroid.relay.network.upstream.DashboardAuthSession
@@ -1315,7 +1316,14 @@ private fun DashboardOAuthScreen(
                             }
                         }
                         webView = this
-                        loadUrl(loginUrl)
+                        val reason = TailnetEnforcer.get().checkUrl(loginUrl)
+                        if (reason != null) {
+                            val message = resources.getString(R.string.tailnet_diag_blocked)
+                            statusText = message
+                            onError(message)
+                        } else {
+                            loadUrl(loginUrl)
+                        }
                     }
                 },
             )

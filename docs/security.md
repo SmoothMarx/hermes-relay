@@ -103,7 +103,7 @@ does not provide anonymity or independently identify the physical host. It is
 ordered after Tailscale and supported direct TLS routes. See
 [`docs/security-broker-transport.md`](security-broker-transport.md).
 
-Multi-endpoint pairing (ADR 24) makes "same phone, different networks" a first-class case: a single QR carries `lan` / `tailscale` / `public` candidates in strict-priority order and the phone re-probes reachability on every network change. Per-candidate `transport_hint` drives the plaintext-`ws://` gating — an unencrypted leg is used only after the operator has enabled and acknowledged plain connections. The TOFU cert pin is keyed by `host:port`, so two endpoints pointing at the same hostname share a pin (correct — same cert, same pin) while distinct hostnames each get their own.
+Multi-endpoint pairing (ADR 24) makes "same phone, different networks" a first-class case: a single QR carries `lan` / `tailscale` / `public` candidates in strict-priority order and the phone re-probes reachability on every network change. A connection can also opt in to **Always connect via Tailscale**, which makes every non-tailnet candidate ineligible for that connection and reports a blocked state instead of downgrading. Per-candidate `transport_hint` drives the plaintext-`ws://` gating — an unencrypted leg is used only after the operator has enabled and acknowledged plain connections. The TOFU cert pin is keyed by `host:port`, so two endpoints pointing at the same hostname share a pin (correct — same cert, same pin) while distinct hostnames each get their own.
 
 ## Recommendations for Production Use
 

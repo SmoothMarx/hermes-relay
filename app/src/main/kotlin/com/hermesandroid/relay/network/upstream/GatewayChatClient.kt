@@ -25,6 +25,7 @@ import com.hermesandroid.relay.data.Profile
 import com.hermesandroid.relay.data.isSafeProfileUiMeta
 import com.hermesandroid.relay.network.upstream.models.MessageItem
 import com.hermesandroid.relay.network.upstream.models.UsageInfo
+import com.hermesandroid.relay.network.shared.HermesClients
 import com.hermesandroid.relay.util.AppForegroundTracker
 import com.hermesandroid.relay.util.TurnLatencyTracer
 import kotlinx.coroutines.CompletableDeferred
@@ -277,16 +278,17 @@ class GatewayChatClient(
 
     private val json = Json { ignoreUnknownKeys = true }
 
-    private val client: OkHttpClient = (okHttpClient ?: OkHttpClient())
-        .newBuilder()
-        // The 10s default connectTimeout is LAN-tuned; a remote dashboard
-        // reached over Tailscale (DERP cold start) can take longer to complete
-        // the WS upgrade. A failed connect leaves Android on its Gateway owner and a
-        // 5s cooldown, so give the first remote handshake room.
-        .connectTimeout(20, TimeUnit.SECONDS)
-        .pingInterval(30, TimeUnit.SECONDS)
-        .readTimeout(0, TimeUnit.MILLISECONDS)
-        .build()
+    private val client: OkHttpClient = HermesClients.build(
+        (okHttpClient ?: OkHttpClient())
+            .newBuilder()
+            // The 10s default connectTimeout is LAN-tuned; a remote dashboard
+            // reached over Tailscale (DERP cold start) can take longer to complete
+            // the WS upgrade. A failed connect leaves Android on its Gateway owner and a
+            // 5s cooldown, so give the first remote handshake room.
+            .connectTimeout(20, TimeUnit.SECONDS)
+            .pingInterval(30, TimeUnit.SECONDS)
+            .readTimeout(0, TimeUnit.MILLISECONDS),
+    )
 
     /**
      * The dashboard surface this client targets. Mutable so the client can

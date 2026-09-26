@@ -26,6 +26,7 @@ import com.hermesandroid.relay.data.VoiceSettings
 import com.hermesandroid.relay.network.relay.RelayVoiceAudioClientAdapter
 import com.hermesandroid.relay.network.relay.RelayVoiceClient
 import com.hermesandroid.relay.network.shared.AutoVoiceAudioClient
+import com.hermesandroid.relay.network.shared.HermesClients
 import com.hermesandroid.relay.network.shared.pluginProxyRoutesOrNull
 import com.hermesandroid.relay.network.upstream.StandardHermesVoiceClient
 import com.hermesandroid.relay.viewmodel.SESSION_DIRECTORY_PAGE_SIZE
@@ -86,10 +87,11 @@ internal class HermesRuntimeBinder(
 
         relayVoiceClient = RelayVoiceClient(
             context = application,
-            okHttpClient = OkHttpClient.Builder()
-                .readTimeout(2, TimeUnit.MINUTES)
-                .connectTimeout(15, TimeUnit.SECONDS)
-                .build(),
+            okHttpClient = HermesClients.build(
+                OkHttpClient.Builder()
+                    .readTimeout(2, TimeUnit.MINUTES)
+                    .connectTimeout(15, TimeUnit.SECONDS),
+            ),
             relayUrlProvider = { connection.effectiveRelayUrl.value },
             relayRouteChangesProvider = {
                 connection.activeRelayEndpoint.mapNotNull { endpoint ->

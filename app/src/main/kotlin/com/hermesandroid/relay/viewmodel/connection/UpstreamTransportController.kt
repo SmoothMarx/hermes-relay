@@ -303,12 +303,13 @@ class UpstreamTransportController(
         ) {
             return null
         }
-        val base = okhttp3.OkHttpClient.Builder()
-            .retryOnConnectionFailure(false)
-            .connectTimeout(10, java.util.concurrent.TimeUnit.SECONDS)
-            .readTimeout(15, java.util.concurrent.TimeUnit.SECONDS)
-            .writeTimeout(15, java.util.concurrent.TimeUnit.SECONDS)
-            .build()
+        val base = com.hermesandroid.relay.network.shared.HermesClients.build(
+            okhttp3.OkHttpClient.Builder()
+                .retryOnConnectionFailure(false)
+                .connectTimeout(10, java.util.concurrent.TimeUnit.SECONDS)
+                .readTimeout(15, java.util.concurrent.TimeUnit.SECONDS)
+                .writeTimeout(15, java.util.concurrent.TimeUnit.SECONDS),
+        )
         return NativeDashboardAuthClient(
             baseUrl = dashboardUrl,
             tokenStore = dashboardTokenStoreFor(connectionId),

@@ -6,6 +6,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+## [Android 1.18.0] - 2026-09-26
+
+### Added
+
+- Per-connection **Always connect via Tailscale**: when it is on, only tailnet routes are eligible for that connection and every other candidate is refused instead of used as a fallback. The switch lives in Settings, under Gateways, and is off by default.
+
+### Improved
+
+- A blocked connection now says why: the Routes tab carries a read-only Tailscale status row and diagnostics record the block reason and remediation instead of silently downgrading the connection.
+
+
 ## [Android 1.17.0] - 2026-09-13
 
 ### Added

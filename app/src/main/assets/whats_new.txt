@@ -1,19 +1,19 @@
-v1.17.0 - Voice over other apps and clearer conversations
+v1.18.0 - Pin a connection to Tailscale
 
 Summary
-* Google Play gains optional voice controls over other apps. Clarify questions, profile names, and chat context are easier to follow without losing confirmed answers or saved conversations.
+* A saved connection can now require the tailnet. With Always connect via Tailscale on, Hermes Relay refuses every other route for that connection instead of quietly falling back to LAN or public.
 
 Highlights
-* Keep voice controls over other apps — Start Voice Overlay from Voice Focus after granting microphone, notification, and display-over-other-apps access. Stop voice from its controls or persistent notification; screen lock and permission loss end the session.
-* Answer Clarify questions one at a time — Multi-question requests support separate choices and custom answers. Confirmed progress survives reconnects, and failed sends keep the current answer available.
-* Recognize profiles by their display names — Profiles use their Hermes display names, and the resolved server default appears under its agent identity. Explicit profile choices and saved conversations are preserved.
+* Always connect via Tailscale — Turn the setting on for a gateway and that connection only uses tailnet routes: LAN and public candidates become ineligible and are refused instead of being used as a fallback. The switch sits in Settings, under Gateways.
+* A blocked route says why — When the mode is on and no tailnet route answers, the Routes tab shows the Tailscale status row and diagnostics record the block reason with the steps to fix it, instead of silently downgrading the connection.
+
+Added
+* Per connection, off by default — The setting lives on each saved connection and stays off unless you turn it on, so every other connection keeps its existing route order and fallback.
 
 Improved
-* Read cleaner chat cards — Standalone response cards lose the extra outer bubble, assistant messages use quieter surfaces, and delivery status sits beside the timestamp.
-
-Fixed
-* See which context your chat can send — Gateway previews mark phone status and turn context as unavailable. Automatic phone-status sharing is labeled for API-only chats, where it remains supported.
+* App-scoped by design — Only Hermes Relay's own connections are restricted. Which apps the device sends through Tailscale remains a setting in the Tailscale app, which the app explains but does not control.
 
 Compatibility
-* Voice Overlay is now available in Google Play and sideload builds. Device Control remains sideload-only.
-* Standard Chat and voice use upstream Hermes without requiring Hermes-Relay Plugin. Gateway phone-status delivery and automatic Android identification remain unavailable.
+* Requires the Tailscale app installed and signed in on the phone.
+* The mode applies to Hermes Relay's own traffic only; device-wide per-app routing stays a Tailscale app setting.
+* Connections that do not opt in keep today's LAN and public route order and fallback.

@@ -23,6 +23,9 @@ import com.hermesandroid.relay.network.relay.models.Envelope
 import com.hermesandroid.relay.network.shared.EndpointResolver
 import com.hermesandroid.relay.network.shared.EndpointSurface
 import com.hermesandroid.relay.network.shared.fullJitterDelayMs
+import com.hermesandroid.relay.network.shared.HermesClients
+import com.hermesandroid.relay.network.shared.TailnetBlockReason
+import com.hermesandroid.relay.network.shared.TailnetRoutePolicy
 import com.hermesandroid.relay.network.shutdownOffMainThread
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -167,6 +170,9 @@ class ConnectionManager(
     private val dashboardRelayRequestProvider: (suspend (String) -> Request?)? = null,
     /** Deterministic race seam immediately before an ingress failure may poison route state. */
     private val beforeIngressFailureCommit: suspend () -> Unit = {},
+    // Tailnet policy hooks (D1 C8). Defaulted so existing unit tests compile unchanged.
+    private val tailnetPolicyActive: () -> Boolean = { false },
+    private val tailnetUrlCheck: (String) -> TailnetBlockReason? = { null },
 ) {
     private val supervisorJob = SupervisorJob()
     private val scope = CoroutineScope(supervisorJob + Dispatchers.IO)
@@ -199,7 +205,7 @@ class ConnectionManager(
                 builder.certificatePinner(CertificatePinner.DEFAULT)
             }
         }
-        return builder.build()
+        return HermesClients.build(builder)
     }
 
     @Volatile
@@ -279,6 +285,12 @@ class ConnectionManager(
      */
     private val _manualRoleOverride = MutableStateFlow<String?>(null)
     val manualRoleOverrideFlow: StateFlow<String?> = _manualRoleOverride.asStateFlow()
+
+    private val _tailnetResolveBlock = MutableStateFlow<TailnetBlockReason?>(null)
+    val tailnetResolveBlock: StateFlow<TailnetBlockReason?> = _tailnetResolveBlock.asStateFlow()
+
+    private fun writesTailnetBlock(surface: EndpointSurface): Boolean =
+        surface == EndpointSurface.Dashboard || surface == EndpointSurface.Standard
 
     private var networkCallback: ConnectivityManager.NetworkCallback? = null
 
@@ -391,7 +403,7 @@ class ConnectionManager(
             scheduleApiResolution()
             val relayResolved = resolveBestRelayEndpointSafe()
             val resolvedRelayUrl = relayResolved?.relayWebSocketUrl()?.takeIf { it.isNotBlank() }
-            val targetUrl = resolvedRelayUrl ?: url.takeIf { it.isNotBlank() }
+            val targetUrl = resolvedRelayUrl ?: url.takeIf { it.isNotBlank() && !tailnetPolicyActive() }
             _activeRelayEndpoint.value = relayResolved
             if (resolved != null) {
                 _activeEndpoint.value = resolved
@@ -406,14 +418,32 @@ class ConnectionManager(
                 )
             } else {
                 _activeEndpoint.value = null
-                Log.d(TAG, "connect: no resolver winner — using supplied url $url")
-                DiagnosticsLog.record(
-                    category = DiagnosticCategory.Relay,
-                    severity = DiagnosticSeverity.Warning,
-                    title = context?.getString(R.string.conn_diag_using_configured_url) ?: "Using configured relay URL",
-                    detail = "No resolver winner",
-                    url = url,
-                )
+                if (tailnetPolicyActive() && url.isNotBlank()) {
+                    // The policy blanked the configured-URL fallback (see
+                    // targetUrl above), so nothing was dialled — saying "Using
+                    // configured relay URL" here would be a lie.
+                    Log.d(
+                        TAG,
+                        "connect: no resolver winner — Tailscale policy suppressed configured url $url",
+                    )
+                    DiagnosticsLog.record(
+                        category = DiagnosticCategory.Relay,
+                        severity = DiagnosticSeverity.Error,
+                        title = context?.getString(R.string.tailnet_diag_blocked) ?: "Blocked: not a Tailscale route",
+                        detail = TailnetBlockReason.PolicyNoEligibleRoute.name,
+                        operation = "Open Relay WebSocket",
+                        configuredUrl = url,
+                    )
+                } else {
+                    Log.d(TAG, "connect: no resolver winner — using supplied url $url")
+                    DiagnosticsLog.record(
+                        category = DiagnosticCategory.Relay,
+                        severity = DiagnosticSeverity.Warning,
+                        title = context?.getString(R.string.conn_diag_using_configured_url) ?: "Using configured relay URL",
+                        detail = "No resolver winner",
+                        url = url,
+                    )
+                }
             }
             relayResolved?.let { relayRoute ->
                 Log.i(
@@ -493,6 +523,24 @@ class ConnectionManager(
             Log.i(TAG, "metadata reconnect: preserving active rate-limit backoff")
             return false
         }
+        // Same S9 dial-time guard as connectToUrlOnMainPath: this path dials
+        // serverUrl directly, so it must not be a way around "Always connect
+        // via Tailscale".
+        val normalized = normalizeRelayUrl(targetUrl)
+        tailnetUrlCheck(normalized)?.let { reason ->
+            Log.e(TAG, "Blocked non-Tailscale relay socket — Always connect via Tailscale is on")
+            DiagnosticsLog.record(
+                category = DiagnosticCategory.Relay,
+                severity = DiagnosticSeverity.Error,
+                title = context?.getString(R.string.tailnet_diag_blocked) ?: "Blocked: not a Tailscale route",
+                detail = reason.name,
+                operation = "Open Relay WebSocket",
+                configuredUrl = targetUrl,
+                requestUrl = normalized,
+            )
+            _tailnetResolveBlock.value = reason
+            return false
+        }
         val previousSocket = webSocket
         if (previousSocket == null) {
             connect(targetUrl)
@@ -547,6 +595,22 @@ class ConnectionManager(
             )
             return
         }
+
+        tailnetUrlCheck(normalized)?.let { reason ->
+            Log.e(TAG, "Blocked non-Tailscale relay socket — Always connect via Tailscale is on")
+            DiagnosticsLog.record(
+                category = DiagnosticCategory.Relay,
+                severity = DiagnosticSeverity.Error,
+                title = context?.getString(R.string.tailnet_diag_blocked) ?: "Blocked: not a Tailscale route",
+                detail = reason.name,
+                operation = "Open Relay WebSocket",
+                configuredUrl = url,
+                requestUrl = normalized,
+            )
+            _tailnetResolveBlock.value = reason
+            return
+        }
+
         if (isRelayRateLimitBackoffActive(
                 rateLimitBackoffUntilMs,
                 SystemClock.elapsedRealtime(),
@@ -651,8 +715,16 @@ class ConnectionManager(
             } ?: emptyList()
         }
 
-        val eligibleEndpoints = endpoints.filter(candidateFilter)
-        if (eligibleEndpoints.isEmpty()) return null
+        val policyOn = tailnetPolicyActive()
+        val preFilter = endpoints.filter(candidateFilter)
+        if (preFilter.isEmpty()) return null
+        val eligibleEndpoints = if (policyOn) TailnetRoutePolicy.filter(preFilter) else preFilter
+        if (eligibleEndpoints.isEmpty()) {
+            if (policyOn && writesTailnetBlock(surface)) {
+                _tailnetResolveBlock.value = TailnetBlockReason.PolicyNoEligibleRoute
+            }
+            return null
+        }
 
         // Manual override: if the user pinned a role in the Endpoints card,
         // try that one first; fall through to the strict-priority algorithm
@@ -664,13 +736,20 @@ class ConnectionManager(
             if (preferred != null) {
                 // Single-element list still respects the 2s probe gate.
                 val winner = resolver.resolve(listOf(preferred), surface)
+                if (policyOn && writesTailnetBlock(surface)) {
+                    _tailnetResolveBlock.value = null
+                }
                 if (winner != null) return winner
                 Log.i(TAG, "manualRoleOverride=$preferredRole not reachable — " +
                     "falling through to strict-priority resolve")
             }
         }
 
-        return resolver.resolve(eligibleEndpoints, surface)
+        val winner = resolver.resolve(eligibleEndpoints, surface)
+        if (policyOn && writesTailnetBlock(surface)) {
+            _tailnetResolveBlock.value = if (winner == null) TailnetBlockReason.HostUnreachable else null
+        }
+        return winner
     }
 
     /** Every Relay selection path must apply the same live ownership fence. */
@@ -750,6 +829,36 @@ class ConnectionManager(
         scheduleApiResolution()
         val relayResolved = resolveBestRelayEndpointSafe()
         if (resolved == null && _connectionState.value == ConnectionState.Connected) {
+            if (tailnetPolicyActive()) {
+                // Fail closed: under the policy a null resolve means "no
+                // eligible Tailscale route", so the live socket (which may be
+                // riding a LAN/WAN route) must not be preserved — that would
+                // be a fail-open transition. Publish the block reason, drop
+                // the published route, and close the socket through the same
+                // mechanism disconnect() uses so nothing keeps flowing off
+                // the tailnet.
+                Log.w(
+                    TAG,
+                    "probeAndReconnect: no eligible Tailscale route — dropping live relay socket",
+                )
+                _tailnetResolveBlock.value = TailnetBlockReason.PolicyNoEligibleRoute
+                _activeEndpoint.value = null
+                _activeRelayEndpoint.value = null
+                webSocket?.let { live ->
+                    runCatching {
+                        live.close(1000, "Tailscale policy: dropping non-Tailscale route")
+                    }
+                    webSocket = null
+                    // onClosed sees a stale socket once the reference is
+                    // dropped (isActiveSocket compares against this field),
+                    // so the Disconnected transition it would normally
+                    // publish never arrives — publish it here. Leaving the
+                    // state as Connected would also make the duplicate-open
+                    // guard skip a later legitimate reopen of this URL.
+                    _connectionState.value = ConnectionState.Disconnected
+                }
+                return null
+            }
             // Transient probe miss while the relay socket is demonstrably up
             // — keep the live route published rather than downgrading every
             // HTTP surface to the saved URL. Mirrors refreshActiveEndpoint.
@@ -798,6 +907,30 @@ class ConnectionManager(
             ?: resolveLegacyStandardFallbackSafe()
         scheduleApiResolution()
         if (resolved == null && _connectionState.value == ConnectionState.Connected) {
+            if (tailnetPolicyActive()) {
+                // Fail closed, mirroring probeAndReconnectNow: under the
+                // policy a null resolve means "no eligible Tailscale route",
+                // so the live (possibly LAN) socket must not be preserved.
+                // Publish the block, drop the published route, and close any
+                // live socket through the same mechanism disconnect() uses.
+                Log.w(
+                    TAG,
+                    "refreshActiveEndpoint: no eligible Tailscale route — dropping live relay socket",
+                )
+                _tailnetResolveBlock.value = TailnetBlockReason.PolicyNoEligibleRoute
+                _activeEndpoint.value = null
+                _activeRelayEndpoint.value = null
+                webSocket?.let { live ->
+                    runCatching {
+                        live.close(1000, "Tailscale policy: dropping non-Tailscale route")
+                    }
+                    webSocket = null
+                    // onClosed sees a stale socket once the reference is
+                    // dropped, so publish the transition here instead.
+                    _connectionState.value = ConnectionState.Disconnected
+                }
+                return null
+            }
             // Transient probe miss while the relay socket is demonstrably up
             // (slow resume, mid-handoff blip) — keep publishing the live
             // route instead of downgrading every HTTP surface to the saved

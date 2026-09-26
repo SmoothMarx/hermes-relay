@@ -4444,3 +4444,92 @@ Source and merged-manifest validation enforce this boundary. Foreground-service
 lifecycle tests and rendered permission/Stop controls supplement, but do not
 replace, device tests or a reviewed Play test-track submission. See
 [Play declarations](play-store-listing.md#voice-overlay-review-before-production).
+
+---
+
+## ADR 75 — Android "Always connect via Tailscale" is a per-connection client-side route lock
+
+**Status:** Accepted (2026-09-26).
+
+**Context.** Owners want a saved connection that reaches Hermes over the tailnet and
+nothing else: when Tailscale is off, signed out, or the server is unreachable that way,
+the connection must fail visibly instead of quietly falling through to a LAN, public, or
+previously saved URL. Two requirements pull against each other — always connect over
+Tailscale, and do not route the whole device. Today's Android behavior is the opposite of
+fail-closed: ADR 24 picks the highest-priority reachable candidate and falls through, and
+the app's Tailscale signal is informational only (`TailscaleDetector` matches a
+`tailscale0` interface name plus CGNAT and `.ts.net` addresses). Two platform limits shape
+any fix: a third-party app cannot identify the VPN owner as Tailscale, and the VPN
+interface is a generic `tunN`, so an interface-name match is not evidence of the tailnet.
+
+**Decision.** The mode is one opt-in boolean on the saved connection, enforced client-side
+and per socket.
+
+- `Connection.alwaysViaTailscale` (default `false`) is explicit per-connection consent;
+  records saved before the field existed stay off. `TailnetEnforcer` holds the single live
+  policy bit (`setPolicy(connectionId, enabled)`) and enforces only while that bit is on
+  for the active connection.
+- While the bit is on, route selection drops every non-tailnet candidate before ADR 24
+  resolution: a `public` role, an `experimental` candidate, or any candidate whose
+  dashboard/api/relay/proxy/broker surfaces are not all tailnet URLs is ineligible, and a
+  candidate mixing one tailnet surface with one non-tailnet surface is rejected whole. The
+  ADR 24 order of the survivors is unchanged.
+- Non-tailnet dialing is refused rather than retried elsewhere. The effective Dashboard
+  and API URLs, a freshly authenticated origin, and the relay/WebSocket path are each
+  checked, and a refusal publishes one explicit blocked reason instead of a fallback.
+- Enforcement is per socket and owned by one class, `TailnetEnforcer`. It hands every
+  Hermes-host transport a bound `SocketFactory`, a tailnet-only `Dns`, and a network
+  interceptor that rejects any connected peer outside the tailnet ranges. Binding and name
+  resolution happen at dial time, so a client built while the mode was off obeys as soon
+  as it turns on.
+- Tailnet-ness comes from addresses, never from the interface name: MagicDNS `.ts.net`,
+  IPv4 `100.64.0.0/10`, and IPv6 `fd7a:115c:a1e0::/48`. A network carries the tailnet iff
+  it is VPN-transport and one of its link addresses is in those ranges. The `tailscale0`
+  heuristic is gone.
+- Every Hermes-host OkHttp client is built through `HermesClients`; the decorator is
+  idempotent, so a client derived from a decorated one cannot install a second guard.
+- Scope is "this app". The app binds only its own sockets. Keeping other apps out of the
+  tunnel is the Tailscale app's own per-app split-tunnelling setting (include mode) and is
+  the user's action; Relay can guide that setup and verify its own connection, but it
+  cannot read or enforce another app's routing. That boundary is a platform limit, not an
+  implementation choice.
+
+**Alternatives rejected.**
+
+- Process-wide `bindProcessToNetwork`: binding the process also sends updates, model
+  downloads, images, LAN discovery, and loopback sign-in over the tailnet. Per-socket
+  binding leaves those transports on their normal network.
+- An in-app `VpnService`: a second VPN cannot coexist with the Tailscale app, and shipping
+  one invites Play VPN-policy obligations the feature does not need.
+- Embedding tsnet: a Go/gomobile runtime, a larger APK, and a second node identity that
+  duplicates the installed Tailscale app.
+- A server-emitted policy field: the pair/QR `endpoints` array is a top-level field inside
+  the signed canonical body, so putting policy there changes the wire format and its HMAC —
+  out of scope for a client-side switch.
+
+**Consequences.** With the mode on, a connection reaches only Hermes hosts the tailnet can
+reach: LAN discovery and non-Hermes hosts are unreachable while it is on unless the tailnet
+serves them. Connections that did not opt in keep ADR 24's priority and fall-through, and
+the mode never enables or disables itself. "Tailscale is off", "not signed in", and "this
+app is excluded by split tunnelling" are indistinguishable to the app, so the blocked state
+reports one reason and must not claim a specific diagnosis.
+
+**Amended during implementation (independent review).** Turning the mode ON while a relay socket is
+already live over a non-Tailscale route must not leave that socket carrying bytes: the resolver's
+"`resolved == null && connected`" transient-miss early-return is a performance optimisation for the
+mode-off case and does not apply while the mode is on, so the connection reaches the blocked state
+(`PolicyNoEligibleRoute`) and the live socket is torn down instead of continuing over the LAN route the
+user just excluded. Turning the mode on is therefore a fail-closed transition, not a preference hint.
+
+**Key files:**
+
+- `app/src/main/kotlin/com/hermesandroid/relay/data/ConnectionData.kt`
+- `app/src/main/kotlin/com/hermesandroid/relay/network/shared/TailnetEnforcer.kt`
+- `app/src/main/kotlin/com/hermesandroid/relay/network/shared/TailnetAddresses.kt`
+- `app/src/main/kotlin/com/hermesandroid/relay/network/shared/TailnetNetworkClassifier.kt`
+- `app/src/main/kotlin/com/hermesandroid/relay/network/shared/TailnetNetworkSource.kt`
+- `app/src/main/kotlin/com/hermesandroid/relay/network/shared/TailnetRoutePolicy.kt`
+- `app/src/main/kotlin/com/hermesandroid/relay/network/shared/HermesClients.kt`
+- `app/src/main/kotlin/com/hermesandroid/relay/network/relay/ConnectionManager.kt`
+- `app/src/main/kotlin/com/hermesandroid/relay/viewmodel/ConnectionViewModel.kt`
+- `app/src/main/kotlin/com/hermesandroid/relay/HermesRelayApp.kt`

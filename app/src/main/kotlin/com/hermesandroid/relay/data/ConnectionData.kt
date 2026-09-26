@@ -92,6 +92,15 @@ data class Connection(
      * Missing legacy values remain off; route/profile changes do not broaden it.
      */
     val gitRepoScanningEnabled: Boolean = false,
+    /**
+     * Explicit per-connection consent for "Always connect via Tailscale"
+     * (ADR 75). Missing legacy values remain off, so every connection saved
+     * before this field existed keeps today's route behaviour. The live
+     * policy bit is held by
+     * [com.hermesandroid.relay.network.shared.TailnetEnforcer], which this
+     * flag is mirrored into whenever the connection becomes active.
+     */
+    val alwaysViaTailscale: Boolean = false,
     /** Epoch milliseconds. Pass `System.currentTimeMillis()`; do not pass seconds. */
     val pairedAt: Long? = null,
     /** Last time the user explicitly selected this connection. */

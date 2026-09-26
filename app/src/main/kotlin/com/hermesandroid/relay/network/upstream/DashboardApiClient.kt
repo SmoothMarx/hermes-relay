@@ -1918,7 +1918,7 @@ class DashboardApiClient(
                 builder.addInterceptor(it)
                 builder.authenticator(it)
             }
-            return builder.build()
+            return com.hermesandroid.relay.network.shared.HermesClients.build(builder)
         }
 
         fun parseStatus(root: JsonObject): DashboardStatus {

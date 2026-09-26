@@ -2,6 +2,25 @@
  "schema": 3,
  "versions": [
   {
+   "version": "1.18.0",
+   "title": "Pin a connection to Tailscale",
+   "date": "2026-09-26",
+   "summary": "A saved connection can now require the tailnet. With Always connect via Tailscale on, Hermes Relay refuses every other route for that connection instead of quietly falling back to LAN or public.",
+   "changes": [
+    {"id": "tailscale-always-connect", "kind": "added", "title": "Always connect via Tailscale", "summary": "Turn the setting on for a gateway and that connection only uses tailnet routes: LAN and public candidates become ineligible and are refused instead of being used as a fallback. The switch sits in Settings, under Gateways.", "highlight": true},
+    {"id": "tailscale-blocked-state", "kind": "improved", "title": "A blocked route says why", "summary": "When the mode is on and no tailnet route answers, the Routes tab shows the Tailscale status row and diagnostics record the block reason with the steps to fix it, instead of silently downgrading the connection.", "highlight": true},
+    {"id": "tailscale-per-connection", "kind": "added", "title": "Per connection, off by default", "summary": "The setting lives on each saved connection and stays off unless you turn it on, so every other connection keeps its existing route order and fallback.", "highlight": false},
+    {"id": "tailscale-app-scoped", "kind": "improved", "title": "App-scoped by design", "summary": "Only Hermes Relay's own connections are restricted. Which apps the device sends through Tailscale remains a setting in the Tailscale app, which the app explains but does not control.", "highlight": false}
+   ],
+   "compatibility": [
+    "Requires the Tailscale app installed and signed in on the phone.",
+    "The mode applies to Hermes Relay's own traffic only; device-wide per-app routing stays a Tailscale app setting.",
+    "Connections that do not opt in keep today's LAN and public route order and fallback."
+   ],
+   "playNotes": "Pin a saved connection to your tailnet with Always connect via Tailscale, in Settings under Gateways. When it is on, only tailnet routes are eligible and every other route is refused with a clear blocked state instead of quietly falling back. It is per connection, app-scoped, and off by default.",
+   "sections": []
+  },
+  {
    "version": "1.17.0",
    "title": "Voice over other apps and clearer conversations",
    "date": "2026-09-13",

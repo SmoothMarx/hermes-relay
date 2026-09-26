@@ -6,6 +6,7 @@ import android.content.Context
 import com.hermesandroid.relay.auth.SessionTokenStore
 import com.hermesandroid.relay.auth.SecureStoreCache
 import com.hermesandroid.relay.auth.buildRawTokenStore
+import com.hermesandroid.relay.network.shared.HermesClients
 import com.hermesandroid.relay.network.shared.bearerAuthorization
 import com.hermesandroid.relay.network.shared.normalizeCredentialForHeader
 import java.io.EOFException
@@ -109,13 +110,14 @@ class NativeDashboardAuthorization internal constructor(
 class NativeDashboardAuthClient(
     baseUrl: String,
     private val tokenStore: NativeDashboardTokenStore,
-    private val client: OkHttpClient = OkHttpClient.Builder()
-        .dns(RetryingNativeAuthDns())
-        .retryOnConnectionFailure(false)
-        .connectTimeout(10, TimeUnit.SECONDS)
-        .readTimeout(15, TimeUnit.SECONDS)
-        .writeTimeout(15, TimeUnit.SECONDS)
-        .build(),
+    private val client: OkHttpClient = HermesClients.build(
+        builder = OkHttpClient.Builder()
+            .retryOnConnectionFailure(false)
+            .connectTimeout(10, TimeUnit.SECONDS)
+            .readTimeout(15, TimeUnit.SECONDS)
+            .writeTimeout(15, TimeUnit.SECONDS),
+        dnsFallback = RetryingNativeAuthDns(),
+    ),
     private val json: Json = Json { ignoreUnknownKeys = true },
     private val random: SecureRandom = SecureRandom(),
 ) {
