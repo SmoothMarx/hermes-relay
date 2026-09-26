@@ -83,6 +83,7 @@ import com.hermesandroid.relay.data.ThreadNameStore
 import com.hermesandroid.relay.diagnostics.DiagnosticCategory
 import com.hermesandroid.relay.diagnostics.DiagnosticSeverity
 import com.hermesandroid.relay.diagnostics.DiagnosticsLog
+import com.hermesandroid.relay.util.MediaSaver
 import com.hermesandroid.relay.util.TailscaleDetector
 import com.hermesandroid.relay.network.relay.ChannelMultiplexer
 import com.hermesandroid.relay.network.shared.ConnectivityObserver
@@ -123,6 +124,8 @@ import com.hermesandroid.relay.network.shared.TailnetBlockReason
 import com.hermesandroid.relay.network.shared.TailnetEnforcer
 import com.hermesandroid.relay.network.shared.TailnetNetworkStatus
 import com.hermesandroid.relay.network.shared.TailnetRoutePolicy
+import com.hermesandroid.relay.network.shared.HermesClients
+import com.hermesandroid.relay.network.shared.enforceTailnetPolicy
 import com.hermesandroid.relay.network.upstream.ServerCapabilities
 import com.hermesandroid.relay.network.relay.RelayHttpClient
 import com.hermesandroid.relay.network.relay.RelayUrlDeriver
@@ -1059,6 +1062,20 @@ class ConnectionViewModel(application: Application) : AndroidViewModel(applicati
 
         // One-shot "Live voice conversation" hint on the input bar's voice slot
         private val KEY_VOICE_HINT_SEEN = booleanPreferencesKey("voice_mode_hint_seen")
+
+        // --- Tailnet media/image authority split (ADR 75) ---------------------
+        /**
+         * Authorities of the active connection's Hermes-host traffic, in [MediaSaver]'s
+         * `host:port` convention. Companion scoped so the provider lambda captures only this
+         * holder, never a ViewModel instance; volatile because the active-connection collector
+         * writes it while fetches read it from arbitrary threads. Empty = fail-closed.
+         */
+        @Volatile
+        private var hermesRouteAuthorities: Set<String> = emptySet()
+
+        /** Guards the one-time [MediaSaver] provider registration across ctor runs. */
+        @Volatile
+        private var hermesRouteAuthoritiesProviderRegistered = false
     }
 
     private val petBehaviorPreferencesRepository =
@@ -1188,12 +1205,13 @@ class ConnectionViewModel(application: Application) : AndroidViewModel(applicati
     // distinct from the relay HTTP client (long read timeout for media
     // downloads) so probe timeouts stay tight and don't pick up a 2-minute
     // stream inheritance from the shared pool. See ADR 24.
-    private val endpointProbeClient: OkHttpClient = OkHttpClient.Builder()
-        .connectTimeout(2, TimeUnit.SECONDS)
-        .readTimeout(2, TimeUnit.SECONDS)
-        .writeTimeout(2, TimeUnit.SECONDS)
-        .callTimeout(2, TimeUnit.SECONDS)
-        .build()
+    private val endpointProbeClient: OkHttpClient = HermesClients.build(
+        OkHttpClient.Builder()
+            .connectTimeout(2, TimeUnit.SECONDS)
+            .readTimeout(2, TimeUnit.SECONDS)
+            .writeTimeout(2, TimeUnit.SECONDS)
+            .callTimeout(2, TimeUnit.SECONDS),
+    )
 
     private val endpointResolver = EndpointResolver(
         httpClient = endpointProbeClient,
@@ -1241,6 +1259,8 @@ class ConnectionViewModel(application: Application) : AndroidViewModel(applicati
         dashboardRelayRequestProvider = { relayUrl ->
             dashboardRelayRequestForIngress(relayUrl)
         },
+        tailnetPolicyActive = { TailnetEnforcer.get().isEnforcing() },
+        tailnetUrlCheck = { TailnetEnforcer.get().checkUrl(it) },
     )
 
     // Data management — ConnectionStore flows through so exportSettings()
@@ -1282,10 +1302,11 @@ class ConnectionViewModel(application: Application) : AndroidViewModel(applicati
      * interfere, but configured the same way (long read timeout to handle
      * slow mobile connections + large files).
      */
-    private val relayOkHttp: OkHttpClient = OkHttpClient.Builder()
-        .readTimeout(2, TimeUnit.MINUTES)
-        .connectTimeout(15, TimeUnit.SECONDS)
-        .build()
+    private val relayOkHttp: OkHttpClient = HermesClients.build(
+        OkHttpClient.Builder()
+            .readTimeout(2, TimeUnit.MINUTES)
+            .connectTimeout(15, TimeUnit.SECONDS),
+    )
 
     val relayHttpClient = RelayHttpClient(
         okHttpClient = relayOkHttp,
@@ -1476,6 +1497,55 @@ class ConnectionViewModel(application: Application) : AndroidViewModel(applicati
     }
 
     /**
+     * Refresh [hermesRouteAuthorities] from the ACTIVE connection's route candidates. Called on
+     * every active-connection change; a null connection (nothing active) clears the set, which
+     * keeps the MediaSaver/Coil authority split fail-closed instead of guessing.
+     */
+    private fun updateHermesRouteAuthorities(connection: Connection?) {
+        if (connection == null) {
+            hermesRouteAuthorities = emptySet()
+            return
+        }
+        val candidates = connection.routeCandidates.ifEmpty {
+            Connection.buildRouteCandidates(
+                apiServerUrl = connection.apiServerUrl,
+                relayUrl = connection.relayUrl,
+                dashboardUrl = connection.configuredDashboardUrl,
+            )
+        }
+        hermesRouteAuthorities = candidates.flatMap { candidate ->
+            listOfNotNull(
+                candidate.dashboard?.url,
+                candidate.api?.url,
+                candidate.relay?.url,
+                candidate.proxy?.url,
+                candidate.broker?.url,
+            )
+        }.mapNotNull { hermesAuthorityOf(it) }.toSet()
+    }
+
+    /**
+     * Mirrors `MediaSaver.authorityOf`, which is private there — same `host:port` normalization,
+     * so a fetched URL's authority matches the set built above. The ws/wss rewrite keeps
+     * WebSocket route candidates comparable to their HTTP equivalents.
+     */
+    private fun hermesAuthorityOf(rawUrl: String): String? {
+        val httpUrl = when {
+            rawUrl.startsWith("ws://", ignoreCase = true) -> "http://${rawUrl.substringAfter("://")}"
+            rawUrl.startsWith("wss://", ignoreCase = true) -> "https://${rawUrl.substringAfter("://")}"
+            else -> rawUrl
+        }
+        val uri = runCatching { java.net.URI(httpUrl) }.getOrNull() ?: return null
+        val host = uri.host?.lowercase()?.takeIf { it.isNotBlank() } ?: return null
+        val port = when {
+            uri.port > 0 -> uri.port
+            uri.scheme.equals("https", ignoreCase = true) -> 443
+            else -> 80
+        }
+        return "$host:$port"
+    }
+
+    /**
      * Old installs may still hold Relay route details only in the paired-device
      * store. Recover those details without putting hardware-backed token-store
      * hydration on standard Dashboard route selection's cold-start path.
@@ -1590,6 +1660,7 @@ class ConnectionViewModel(application: Application) : AndroidViewModel(applicati
             .connectTimeout(20, TimeUnit.SECONDS)
             .readTimeout(0, TimeUnit.MILLISECONDS)
             .pingInterval(30, TimeUnit.SECONDS)
+            .enforceTailnetPolicy()
         val sessionTokenProvider = {
             (authManager.authState.value as? AuthState.Paired)?.token
         }
@@ -2869,6 +2940,12 @@ class ConnectionViewModel(application: Application) : AndroidViewModel(applicati
     }
 
     init {
+        // MediaSaver/Coil choose their client per fetch from this provider. Register it once;
+        // the set lives on the companion, so the lambda never captures this ViewModel instance.
+        if (!hermesRouteAuthoritiesProviderRegistered) {
+            hermesRouteAuthoritiesProviderRegistered = true
+            MediaSaver.setHermesRouteAuthoritiesProvider { hermesRouteAuthorities }
+        }
         authManager.setActiveEndpointProvider { connectionManager.activeRelayEndpoint.value }
         // Materialize the independent central and floating preferences. Legacy
         // users retain the prior visual in both roles until they choose otherwise.
@@ -3586,6 +3663,7 @@ class ConnectionViewModel(application: Application) : AndroidViewModel(applicati
         // The policy bit must be live BEFORE the overrides and transports below are
         // restored, so the first resolve of the restored connection is already gated.
         TailnetEnforcer.get().setPolicy(connection.id, connection.alwaysViaTailscale)
+        updateHermesRouteAuthorities(connection)
         connectionManager.setManualRoleOverride(connection.preferredRouteRole)
         getApplication<Application>().relayDataStore.edit { prefs ->
             prefs[KEY_API_SERVER_URL] = connection.apiServerUrl
@@ -5393,6 +5471,7 @@ class ConnectionViewModel(application: Application) : AndroidViewModel(applicati
                 // Per-connection policy, mirrored from the stored consent flag. A null id
                 // (no active connection) means nothing is enforced.
                 TailnetEnforcer.get().setPolicy(connection?.id, connection?.alwaysViaTailscale == true)
+                updateHermesRouteAuthorities(connection)
                 connectionManager.setManualRoleOverride(connection?.preferredRouteRole)
                 profileController.clearSelectedProfile()
                 _lastSessionId.value = null
@@ -5830,6 +5909,7 @@ class ConnectionViewModel(application: Application) : AndroidViewModel(applicati
         _apiServerUrl.value = connection.apiServerUrl
         _relayUrl.value = connection.relayUrl
         TailnetEnforcer.get().setPolicy(connection.id, connection.alwaysViaTailscale)
+        updateHermesRouteAuthorities(connection)
         connectionManager.setManualRoleOverride(connection.preferredRouteRole)
         getApplication<Application>().relayDataStore.edit { prefs ->
             prefs[KEY_API_SERVER_URL] = connection.apiServerUrl
