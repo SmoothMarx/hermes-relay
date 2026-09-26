@@ -24,6 +24,8 @@ import com.hermesandroid.relay.ui.components.avatar.PetLoader
 import com.hermesandroid.relay.ui.components.avatar.SphereAvatar
 import com.hermesandroid.relay.ui.components.SphereSkinImportResult
 import com.hermesandroid.relay.ui.components.SphereSkinImporter
+import com.hermesandroid.relay.ui.components.TailscaleAlwaysConnectStatus
+import com.hermesandroid.relay.ui.components.TailscaleAlwaysConnectUiState
 import com.hermesandroid.relay.ui.components.resolvedDashboardIngressPairingPayload
 import com.hermesandroid.relay.ui.components.pet.PetLogicalEdge
 import com.hermesandroid.relay.ui.components.pet.PetPlacement
@@ -116,6 +118,11 @@ import com.hermesandroid.relay.network.upstream.HermesApiClient
 import com.hermesandroid.relay.network.shared.RouteProbeOutcome
 import com.hermesandroid.relay.network.shared.ProfileApiUrlResolver
 import com.hermesandroid.relay.network.shared.normalizeCredentialForHeader
+import com.hermesandroid.relay.network.shared.TailnetAddresses
+import com.hermesandroid.relay.network.shared.TailnetBlockReason
+import com.hermesandroid.relay.network.shared.TailnetEnforcer
+import com.hermesandroid.relay.network.shared.TailnetNetworkStatus
+import com.hermesandroid.relay.network.shared.TailnetRoutePolicy
 import com.hermesandroid.relay.network.upstream.ServerCapabilities
 import com.hermesandroid.relay.network.relay.RelayHttpClient
 import com.hermesandroid.relay.network.relay.RelayUrlDeriver
@@ -457,15 +464,17 @@ internal fun resolveEffectiveRelayUrl(
     savedApiUrl: String,
     activeRelayEndpoint: EndpointCandidate?,
     relayConfigured: Boolean,
+    tailnetOnly: Boolean = false,
 ): String {
     if (!relayConfigured) return ""
-    activeRelayEndpoint?.pluginProxyRoutesOrNull()?.relayWebSocketUrl?.let { return it }
-    activeRelayEndpoint?.relay?.url?.trim()?.takeIf(String::isNotBlank)?.let { return it }
-    return if (RelayUrlDeriver.isAutoManagedRelayUrl(savedRelayUrl, savedApiUrl)) {
-        RelayUrlDeriver.deriveFromApiUrl(savedApiUrl) ?: savedRelayUrl
-    } else {
-        savedRelayUrl
-    }
+    val r = activeRelayEndpoint?.pluginProxyRoutesOrNull()?.relayWebSocketUrl
+        ?: activeRelayEndpoint?.relay?.url?.trim()?.takeIf(String::isNotBlank)
+        ?: if (RelayUrlDeriver.isAutoManagedRelayUrl(savedRelayUrl, savedApiUrl)) {
+            RelayUrlDeriver.deriveFromApiUrl(savedApiUrl) ?: savedRelayUrl
+        } else {
+            savedRelayUrl
+        }
+    return if (tailnetOnly && !TailnetAddresses.isTailnetUrl(r)) "" else r
 }
 
 /**
@@ -512,33 +521,34 @@ internal fun reusablePlaceholderForAdd(
 internal fun resolveEffectiveDashboardUrl(
     connection: Connection?,
     endpoint: EndpointCandidate?,
+    tailnetOnly: Boolean = false,
 ): String {
     if (connection == null) return ""
-    connection.authenticatedDashboardOrigin
+    val r = connection.authenticatedDashboardOrigin
         ?.let(::normalizeCredentialFreeAuthenticatedDashboardOrigin)
-        ?.let { return it }
-    // The resolver publishes independently of the active connection. During a
-    // switch its last winner can still belong to the outgoing installation.
-    // Never use that winner as authority for the incoming connection's bearer.
-    val routes = connection.routeCandidates.ifEmpty {
-        Connection.buildRouteCandidates(
-            apiServerUrl = connection.apiServerUrl,
-            relayUrl = connection.relayUrl,
-            dashboardUrl = connection.configuredDashboardUrl,
-        )
-    }
-    val ownedEndpoint = endpoint?.takeIf { it in routes }
-    ownedEndpoint?.pluginProxyRoutesOrNull()?.dashboardBaseUrl?.let { return it }
-    ownedEndpoint?.dashboard?.url
-        ?.takeIf { it.isNotBlank() }
-        ?.let { return it }
-    ownedEndpoint?.api?.url?.let { apiUrl ->
-        connection.dashboardUrl
-            ?.takeIf { it.isNotBlank() && Connection.urlsShareHost(it, apiUrl) }
-            ?.let { return it }
-        Connection.deriveDefaultDashboardUrl(apiUrl)?.let { return it }
-    }
-    return connection.resolvedDashboardUrl
+        ?: run {
+            // The resolver publishes independently of the active connection. During a
+            // switch its last winner can still belong to the outgoing installation.
+            // Never use that winner as authority for the incoming connection's bearer.
+            val routes = connection.routeCandidates.ifEmpty {
+                Connection.buildRouteCandidates(
+                    apiServerUrl = connection.apiServerUrl,
+                    relayUrl = connection.relayUrl,
+                    dashboardUrl = connection.configuredDashboardUrl,
+                )
+            }
+            val ownedEndpoint = endpoint?.takeIf { it in routes }
+            ownedEndpoint?.pluginProxyRoutesOrNull()?.dashboardBaseUrl
+                ?: ownedEndpoint?.dashboard?.url
+                    ?.takeIf { it.isNotBlank() }
+                ?: ownedEndpoint?.api?.url?.let { apiUrl ->
+                    connection.dashboardUrl
+                        ?.takeIf { it.isNotBlank() && Connection.urlsShareHost(it, apiUrl) }
+                        ?: Connection.deriveDefaultDashboardUrl(apiUrl)
+                }
+                ?: connection.resolvedDashboardUrl
+        }
+    return if (tailnetOnly && !TailnetAddresses.isTailnetUrl(r)) "" else r
 }
 
 internal fun isCurrentDashboardProbe(
@@ -797,6 +807,9 @@ internal suspend fun persistAuthenticatedDashboardOriginWithRollback(
     persist: suspend (Connection) -> Unit,
     activated: suspend () -> Boolean,
 ): Boolean {
+    if (previous.alwaysViaTailscale && !TailnetAddresses.isTailnetUrl(normalizedOrigin)) {
+        return false
+    }
     val promoted = withAuthenticatedDashboardOrigin(previous, normalizedOrigin)
     var persisted = false
     val success = try {
@@ -821,10 +834,13 @@ internal suspend fun persistAuthenticatedDashboardOriginWithRollback(
 internal fun resolveEffectiveApiServerUrl(
     savedUrl: String,
     endpoint: EndpointCandidate?,
+    tailnetOnly: Boolean = false,
 ): String {
     if (savedUrl.isBlank()) return ""
-    endpoint?.pluginProxyRoutesOrNull()?.apiBaseUrl?.let { return it }
-    return endpoint?.api?.url?.takeIf { it.isNotBlank() } ?: savedUrl
+    val r = endpoint?.pluginProxyRoutesOrNull()?.apiBaseUrl
+        ?: endpoint?.api?.url?.takeIf { it.isNotBlank() }
+        ?: savedUrl
+    return if (tailnetOnly && !TailnetAddresses.isTailnetUrl(r)) "" else r
 }
 
 /**
@@ -998,6 +1014,9 @@ class ConnectionViewModel(application: Application) : AndroidViewModel(applicati
         private val KEY_PET_SPEED = floatPreferencesKey("pet_speed")
         private val KEY_PET_STABILIZE = booleanPreferencesKey("pet_stabilize")
         const val DEFAULT_FONT_SCALE: Float = 1.0f
+        // Tailscale's package id, also listed in the app manifest `<queries>` block so
+        // Android 11+ package visibility can resolve its launch intent.
+        private const val TAILSCALE_APP_PACKAGE = "com.tailscale.ipn"
         private val KEY_INSECURE_MODE = booleanPreferencesKey("insecure_mode")
         private val KEY_LAST_SEEN_VERSION = stringPreferencesKey("last_seen_version")
         private val KEY_LAST_SESSION_ID = stringPreferencesKey("last_session_id")
@@ -1976,8 +1995,9 @@ class ConnectionViewModel(application: Application) : AndroidViewModel(applicati
     val effectiveApiServerUrl: StateFlow<String> = combine(
         _apiServerUrl,
         connectionManager.activeApiEndpoint,
-    ) { savedUrl, endpoint ->
-        resolveEffectiveApiServerUrl(savedUrl, endpoint)
+        activeConnection,
+    ) { savedUrl, endpoint, connection ->
+        resolveEffectiveApiServerUrl(savedUrl, endpoint, tailnetOnly = connection?.alwaysViaTailscale == true)
     }.stateIn(viewModelScope, SharingStarted.Eagerly, "")
 
     /**
@@ -2019,8 +2039,15 @@ class ConnectionViewModel(application: Application) : AndroidViewModel(applicati
         _apiServerUrl,
         connectionManager.activeRelayEndpoint,
         relayConfigured,
-    ) { savedRelayUrl, savedApiUrl, endpoint, configured ->
-        resolveEffectiveRelayUrl(savedRelayUrl, savedApiUrl, endpoint, configured)
+        activeConnection,
+    ) { savedRelayUrl, savedApiUrl, endpoint, configured, connection ->
+        resolveEffectiveRelayUrl(
+            savedRelayUrl,
+            savedApiUrl,
+            endpoint,
+            configured,
+            tailnetOnly = connection?.alwaysViaTailscale == true,
+        )
     }.stateIn(viewModelScope, SharingStarted.Eagerly, "")
 
     /**
@@ -2034,7 +2061,7 @@ class ConnectionViewModel(application: Application) : AndroidViewModel(applicati
         activeConnection,
         connectionManager.activeEndpoint,
     ) { connection, endpoint ->
-        resolveEffectiveDashboardUrl(connection, endpoint)
+        resolveEffectiveDashboardUrl(connection, endpoint, tailnetOnly = connection?.alwaysViaTailscale == true)
     }.stateIn(viewModelScope, SharingStarted.Eagerly, "")
 
     /**
@@ -2269,6 +2296,11 @@ class ConnectionViewModel(application: Application) : AndroidViewModel(applicati
     // One-shot, user-facing results of avatar add/remove for a snackbar.
     private val _avatarEvents = MutableSharedFlow<String>(extraBufferCapacity = 4)
     val avatarEvents: SharedFlow<String> = _avatarEvents.asSharedFlow()
+
+    // One-shot, user-facing result of a route write the tailnet policy refused (S10):
+    // the string res the Routes card renders as a toast.
+    private val _tailnetRouteBlockedEvents = MutableSharedFlow<Int>(extraBufferCapacity = 4)
+    val tailnetRouteBlockedEvents: SharedFlow<Int> = _tailnetRouteBlockedEvents.asSharedFlow()
 
     fun refreshAgentAvatars() {
         _avatarsRefreshTick.value = _avatarsRefreshTick.value + 1
@@ -3551,6 +3583,9 @@ class ConnectionViewModel(application: Application) : AndroidViewModel(applicati
 
         _apiServerUrl.value = connection.apiServerUrl
         _relayUrl.value = restoredRelayUrl
+        // The policy bit must be live BEFORE the overrides and transports below are
+        // restored, so the first resolve of the restored connection is already gated.
+        TailnetEnforcer.get().setPolicy(connection.id, connection.alwaysViaTailscale)
         connectionManager.setManualRoleOverride(connection.preferredRouteRole)
         getApplication<Application>().relayDataStore.edit { prefs ->
             prefs[KEY_API_SERVER_URL] = connection.apiServerUrl
@@ -5355,6 +5390,9 @@ class ConnectionViewModel(application: Application) : AndroidViewModel(applicati
                 val connection = connectionId?.let { cid ->
                     connectionStore.connections.value.firstOrNull { it.id == cid }
                 }
+                // Per-connection policy, mirrored from the stored consent flag. A null id
+                // (no active connection) means nothing is enforced.
+                TailnetEnforcer.get().setPolicy(connection?.id, connection?.alwaysViaTailscale == true)
                 connectionManager.setManualRoleOverride(connection?.preferredRouteRole)
                 profileController.clearSelectedProfile()
                 _lastSessionId.value = null
@@ -5791,6 +5829,7 @@ class ConnectionViewModel(application: Application) : AndroidViewModel(applicati
         connectionStore.setActiveConnection(connection.id)
         _apiServerUrl.value = connection.apiServerUrl
         _relayUrl.value = connection.relayUrl
+        TailnetEnforcer.get().setPolicy(connection.id, connection.alwaysViaTailscale)
         connectionManager.setManualRoleOverride(connection.preferredRouteRole)
         getApplication<Application>().relayDataStore.edit { prefs ->
             prefs[KEY_API_SERVER_URL] = connection.apiServerUrl
@@ -7897,6 +7936,71 @@ class ConnectionViewModel(application: Application) : AndroidViewModel(applicati
             routeAuthority() == other.routeAuthority()
 
     /**
+     * Whether Tailscale is visible to us as an installed app. Resolved once: the manifest
+     * `<queries>` entry is static, and Tailscale appearing while the policy is on is rare
+     * enough that the next app start picking it up is acceptable.
+     */
+    private val isTailscaleAppInstalled: Boolean by lazy {
+        runCatching { ctx.packageManager.getLaunchIntentForPackage(TAILSCALE_APP_PACKAGE) }
+            .getOrNull() != null
+    }
+
+    /**
+     * What the "Always connect via Tailscale" surfaces render for the ACTIVE connection
+     * (MERGE C8). [TailscaleAlwaysConnectUiState.Off] until the enforcer really enforces for
+     * it; when enforcing, [TailscaleAlwaysConnectStatus] names the first reason the tailnet
+     * route cannot be used, in the order the user can act on them. Fail closed: an
+     * unmatched state reports the general "not available" reason, never a healthy one.
+     */
+    val tailscaleAlwaysConnectUiState: StateFlow<TailscaleAlwaysConnectUiState> = combine(
+        activeConnection,
+        TailnetEnforcer.get().enforcing,
+        TailnetEnforcer.get().networkStatus,
+        connectionManager.tailnetResolveBlock,
+        connectionManager.activeEndpoint,
+    ) { connection, enforcing, networkStatus, resolveBlock, activeEndpoint ->
+        if (!enforcing || connection == null) return@combine TailscaleAlwaysConnectUiState.Off
+        val status = when {
+            !isTailscaleAppInstalled -> TailscaleAlwaysConnectStatus.TailscaleAppMissing
+            networkStatus !is TailnetNetworkStatus.Present ->
+                TailscaleAlwaysConnectStatus.TailnetUnavailable
+            !TailnetRoutePolicy.hasEligibleRoute(connection.routeCandidates) ->
+                TailscaleAlwaysConnectStatus.NoTailscaleRouteConfigured
+            resolveBlock == TailnetBlockReason.PolicyNoEligibleRoute ->
+                TailscaleAlwaysConnectStatus.NoTailscaleRouteConfigured
+            resolveBlock == TailnetBlockReason.TailnetNetworkAbsent ->
+                TailscaleAlwaysConnectStatus.TailnetUnavailable
+            resolveBlock == TailnetBlockReason.HostNotOnTailnet ->
+                TailscaleAlwaysConnectStatus.HostNotOnTailnet
+            activeEndpoint != null && !TailnetRoutePolicy.isEligible(activeEndpoint) ->
+                TailscaleAlwaysConnectStatus.ConnectedViaNonTailnet
+            resolveBlock == TailnetBlockReason.HostUnreachable ->
+                TailscaleAlwaysConnectStatus.HostUnreachableOverTailnet
+            else -> TailscaleAlwaysConnectStatus.Healthy
+        }
+        TailscaleAlwaysConnectUiState.On(status)
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, TailscaleAlwaysConnectUiState.Off)
+
+    /**
+     * Turns "Always connect via Tailscale" on/off for the ACTIVE connection: the live policy
+     * bit flips immediately (that is what gates route selection and dialing), the
+     * per-connection consent flag is persisted right after, and the routes are re-probed so
+     * a now-illegal route is swapped for an eligible one. No active connection: nothing to set.
+     */
+    fun setTailscaleAlwaysConnectEnabled(enabled: Boolean) {
+        val activeId = connectionStore.activeConnectionId.value ?: return
+        TailnetEnforcer.get().setPolicy(activeId, enabled)
+        viewModelScope.launch {
+            val current = connectionStore.connections.value.firstOrNull { it.id == activeId }
+                ?: return@launch
+            if (current.alwaysViaTailscale != enabled) {
+                connectionStore.updateConnection(current.copy(alwaysViaTailscale = enabled))
+            }
+        }
+        probeNow()
+    }
+
+    /**
      * Sticky route policy — the Routes card's "Prefer this route". Persists
      * [Connection.preferredRouteRole] (restored as the live override on every
      * connection load / app start) AND installs it via
@@ -7910,6 +8014,16 @@ class ConnectionViewModel(application: Application) : AndroidViewModel(applicati
      * use [useRouteNow] instead.
      */
     fun setPreferredEndpointRole(role: String?) {
+        val connection = activeConnection.value
+        if (connection?.alwaysViaTailscale == true && role != null) {
+            val eligible = connection.routeCandidates.any {
+                it.role.equals(role, ignoreCase = true) && TailnetRoutePolicy.isEligible(it)
+            }
+            if (!eligible) {
+                _tailnetRouteBlockedEvents.tryEmit(R.string.tailnet_route_blocked_toast)
+                return
+            }
+        }
         connectionManager.setManualRoleOverride(role)
         viewModelScope.launch {
             val activeId = connectionStore.activeConnectionId.value ?: return@launch
@@ -7936,6 +8050,16 @@ class ConnectionViewModel(application: Application) : AndroidViewModel(applicati
      * keeps "act now" and "policy" separate.
      */
     fun useRouteNow(role: String?) {
+        val connection = activeConnection.value
+        if (connection?.alwaysViaTailscale == true && role != null) {
+            val eligible = connection.routeCandidates.any {
+                it.role.equals(role, ignoreCase = true) && TailnetRoutePolicy.isEligible(it)
+            }
+            if (!eligible) {
+                _tailnetRouteBlockedEvents.tryEmit(R.string.tailnet_route_blocked_toast)
+                return
+            }
+        }
         connectionManager.setManualRoleOverride(
             role ?: activeConnection.value?.preferredRouteRole,
         )
