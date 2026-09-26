@@ -6,6 +6,7 @@ import android.util.Log
 import com.hermesandroid.relay.data.AgentDisplay
 import com.hermesandroid.relay.data.AppAnalytics
 import com.hermesandroid.relay.network.shutdownOffMainThread
+import com.hermesandroid.relay.network.shared.HermesClients
 import com.hermesandroid.relay.network.shared.InvalidCredentialException
 import com.hermesandroid.relay.network.shared.bearerAuthorization
 import com.hermesandroid.relay.network.shared.normalizeCredentialForHeader
@@ -487,10 +488,11 @@ class HermesApiClient(
 
     private val mainHandler = Handler(Looper.getMainLooper())
 
-    private val client: OkHttpClient = httpClient ?: okHttpClient ?: OkHttpClient.Builder()
-        .readTimeout(5, TimeUnit.MINUTES)
-        .connectTimeout(10, TimeUnit.SECONDS)
-        .build()
+    private val client: OkHttpClient = httpClient ?: okHttpClient ?: HermesClients.build(
+        OkHttpClient.Builder()
+            .readTimeout(5, TimeUnit.MINUTES)
+            .connectTimeout(10, TimeUnit.SECONDS),
+    )
 
     private val sseFactory = EventSources.createFactory(client)
 

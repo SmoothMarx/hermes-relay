@@ -9,6 +9,8 @@ import android.os.Environment
 import android.provider.MediaStore
 import androidx.annotation.RequiresApi
 import androidx.core.content.FileProvider
+import com.hermesandroid.relay.network.shared.HermesClients
+import com.hermesandroid.relay.network.shared.TailnetAddresses
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
@@ -17,6 +19,7 @@ import java.io.File
 import java.io.ByteArrayOutputStream
 import java.io.IOException
 import java.io.InputStream
+import java.net.URI
 import java.util.concurrent.TimeUnit
 
 /**
@@ -44,10 +47,49 @@ object MediaSaver {
     private const val SHARE_CACHE_DIR = "hermes-media"
     private const val MAX_IN_MEMORY_MEDIA_BYTES = 25L * 1024L * 1024L
 
+    @Volatile
+    private var hermesRouteAuthoritiesProvider: (() -> Set<String>)? = null
+
+    fun setHermesRouteAuthoritiesProvider(provider: (() -> Set<String>)?) {
+        hermesRouteAuthoritiesProvider = provider
+    }
+
+    fun hermesRouteAuthoritiesSnapshot(): Set<String> =
+        hermesRouteAuthoritiesProvider?.invoke().orEmpty()
+
     private val httpClient: OkHttpClient by lazy {
         OkHttpClient.Builder()
             .callTimeout(30, TimeUnit.SECONDS)
             .build()
+    }
+
+    private val hermesClient: OkHttpClient by lazy {
+        HermesClients.build(
+            OkHttpClient.Builder()
+                .callTimeout(30, TimeUnit.SECONDS),
+        )
+    }
+
+    private fun authorityOf(rawUrl: String): String? {
+        val httpUrl = when {
+            rawUrl.startsWith("ws://", ignoreCase = true) -> "http://${rawUrl.substringAfter("://")}"
+            rawUrl.startsWith("wss://", ignoreCase = true) -> "https://${rawUrl.substringAfter("://")}"
+            else -> rawUrl
+        }
+        val uri = runCatching { URI(httpUrl) }.getOrNull() ?: return null
+        val host = uri.host?.lowercase()?.takeIf { it.isNotBlank() } ?: return null
+        val port = when {
+            uri.port > 0 -> uri.port
+            uri.scheme.equals("https", ignoreCase = true) -> 443
+            else -> 80
+        }
+        return "$host:$port"
+    }
+
+    private fun shouldUseHermesClient(url: String): Boolean {
+        if (TailnetAddresses.isTailnetUrl(url)) return true
+        val authority = authorityOf(url) ?: return false
+        return authority in hermesRouteAuthoritiesSnapshot()
     }
 
     /** Outcome of a save attempt. */
@@ -71,7 +113,8 @@ object MediaSaver {
     suspend fun fetchRemoteBytes(url: String): Pair<ByteArray, String?> =
         withContext(Dispatchers.IO) {
             val request = Request.Builder().url(url).get().build()
-            httpClient.newCall(request).execute().use { resp ->
+            val client = if (shouldUseHermesClient(url)) hermesClient else httpClient
+            client.newCall(request).execute().use { resp ->
                 if (!resp.isSuccessful) error("HTTP ${resp.code}")
                 val contentType = resp.header("Content-Type")?.substringBefore(';')?.trim()
                 val responseBody = resp.body
