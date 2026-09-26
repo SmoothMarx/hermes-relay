@@ -6,11 +6,16 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import androidx.browser.customtabs.CustomTabsIntent
+import com.hermesandroid.relay.network.shared.TailnetEnforcer
 
 internal fun launchNativeDashboardAuthorization(
     context: Context,
     authorizationUrl: String,
 ) {
+    TailnetEnforcer.get().checkUrl(authorizationUrl)?.let {
+        // URL-gated entry point; UI surface (slice C) renders the blocked card.
+        return
+    }
     val uri = Uri.parse(authorizationUrl)
     val customTab = CustomTabsIntent.Builder()
         .setShowTitle(true)

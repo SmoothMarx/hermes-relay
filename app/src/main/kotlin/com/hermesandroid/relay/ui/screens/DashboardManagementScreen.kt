@@ -112,6 +112,7 @@ import com.hermesandroid.relay.ui.theme.appearanceRoundedCornerShape
 import com.hermesandroid.relay.data.GatewayProfileAuthChoice
 import com.hermesandroid.relay.data.GatewayProfileCreateRequest
 import com.hermesandroid.relay.data.GatewayProfileManagementUnsupportedException
+import com.hermesandroid.relay.network.shared.TailnetEnforcer
 import com.hermesandroid.relay.network.upstream.EncryptedDashboardCookieStore
 import com.hermesandroid.relay.network.upstream.DashboardApiClient
 import com.hermesandroid.relay.network.upstream.DashboardCustomEndpointDraft
@@ -3330,7 +3331,14 @@ private fun DashboardOAuthSignInDialog(
                                     maybeImportAndVerify(url)
                                 }
                             }
-                            loadUrl(loginUrl)
+                            val reason = TailnetEnforcer.get().checkUrl(loginUrl)
+                            if (reason != null) {
+                                val message = resources.getString(R.string.tailnet_diag_blocked)
+                                statusText = message
+                                onError(message)
+                            } else {
+                                loadUrl(loginUrl)
+                            }
                         }
                     },
                 )
