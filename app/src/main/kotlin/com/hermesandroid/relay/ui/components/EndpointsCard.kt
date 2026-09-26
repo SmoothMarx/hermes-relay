@@ -133,6 +133,12 @@ fun EndpointsCard(
     onAddRoute: (() -> Unit)? = null,
     onEditRoute: ((EndpointCandidate) -> Unit)? = null,
     onRemoveRoute: ((EndpointCandidate) -> Unit)? = null,
+    /**
+     * True while "Always connect via Tailscale" is on for this connection. Rows that
+     * [isTailnetEligible] rejects then lose "Use now" / "Prefer" and show a "Tailscale only" chip.
+     */
+    tailnetOnly: Boolean = false,
+    isTailnetEligible: (EndpointCandidate) -> Boolean = { true },
 ) {
     // Pre-resolve strings
     val noRoutesStoredText = stringResource(R.string.endpoints_no_routes_stored)
@@ -205,10 +211,14 @@ fun EndpointsCard(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
+        val tailnetEligibleCount = if (tailnetOnly) endpoints.count(isTailnetEligible) else 0
         endpoints.forEachIndexed { index, candidate ->
             if (index > 0) HorizontalDivider()
+            val candidateTailnetEligible = isTailnetEligible(candidate)
             EndpointRow(
                 candidate = candidate,
+                blockedByTailnetPolicy = tailnetOnly && !candidateTailnetEligible,
+                removesLastTailnetRoute = tailnetOnly && candidateTailnetEligible && tailnetEligibleCount == 1,
                 isActive = activeEndpoint != null &&
                     activeEndpoint.role.equals(candidate.role, ignoreCase = true) &&
                     activeEndpoint.routeAuthority() == candidate.routeAuthority(),
@@ -278,6 +288,8 @@ private fun EndpointRow(
     onViewPin: suspend (EndpointCandidate) -> String?,
     onEdit: (() -> Unit)? = null,
     onRemove: (() -> Unit)? = null,
+    blockedByTailnetPolicy: Boolean = false,
+    removesLastTailnetRoute: Boolean = false,
 ) {
     var menuOpen by remember { mutableStateOf(false) }
     var pinDialogText by remember { mutableStateOf<String?>(null) }
@@ -330,6 +342,9 @@ private fun EndpointRow(
                         isActive -> ActiveChip(stringResource(R.string.endpoints_active))
                         isPreferred -> PreferredChip(stringResource(R.string.endpoints_preferred_chip))
                         else -> FallbackChip(stringResource(R.string.endpoints_fallback))
+                    }
+                    if (blockedByTailnetPolicy) {
+                        FallbackChip(stringResource(R.string.tailnet_route_blocked_chip))
                     }
                     if (!candidate.isKnownRole() && candidate.displayName.isNullOrBlank()) {
                         Text(
@@ -442,7 +457,7 @@ private fun EndpointRow(
             //
             // "Use now" is the TRANSIENT switch (until disconnect); the
             // sticky "Prefer this route" lives in the menu below.
-            if (!isActive) {
+            if (!isActive && !blockedByTailnetPolicy) {
                 TextButton(onClick = onUseNow) {
                     Text(stringResource(R.string.endpoints_use_now))
                 }
@@ -458,28 +473,30 @@ private fun EndpointRow(
                     expanded = menuOpen,
                     onDismissRequest = { menuOpen = false },
                 ) {
-                    DropdownMenuItem(
-                        text = {
-                            Column {
-                                Text(
-                                    text = if (isPreferred) stringResource(R.string.endpoints_stop_preferring_menu) else stringResource(R.string.endpoints_prefer_this_route),
-                                )
-                                Text(
-                                    text = if (isPreferred) {
-                                        stringResource(R.string.endpoints_back_to_automatic)
-                                    } else {
-                                        stringResource(R.string.endpoints_always_try_first)
-                                    },
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                            }
-                        },
-                        onClick = {
-                            menuOpen = false
-                            if (isPreferred) onClearPrefer() else onPrefer()
-                        },
-                    )
+                    if (!blockedByTailnetPolicy) {
+                        DropdownMenuItem(
+                            text = {
+                                Column {
+                                    Text(
+                                        text = if (isPreferred) stringResource(R.string.endpoints_stop_preferring_menu) else stringResource(R.string.endpoints_prefer_this_route),
+                                    )
+                                    Text(
+                                        text = if (isPreferred) {
+                                            stringResource(R.string.endpoints_back_to_automatic)
+                                        } else {
+                                            stringResource(R.string.endpoints_always_try_first)
+                                        },
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+                            },
+                            onClick = {
+                                menuOpen = false
+                                if (isPreferred) onClearPrefer() else onPrefer()
+                            },
+                        )
+                    }
                     DropdownMenuItem(
                         text = { Text(stringResource(R.string.endpoints_probe_now)) },
                         onClick = {
@@ -535,10 +552,19 @@ private fun EndpointRow(
             onDismissRequest = { confirmRemove = false },
             title = { Text(stringResource(R.string.endpoints_remove_route_title, candidate.displayLabel())) },
             text = {
-                Text(
-                    text = stringResource(R.string.endpoints_remove_route_body, candidate.routeAuthority().orEmpty()),
-                    style = MaterialTheme.typography.bodySmall,
-                )
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        text = stringResource(R.string.endpoints_remove_route_body, candidate.routeAuthority().orEmpty()),
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                    if (removesLastTailnetRoute) {
+                        Text(
+                            text = stringResource(R.string.tailnet_last_route_removed_warning),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                    }
+                }
             },
             confirmButton = {
                 TextButton(
@@ -1031,13 +1057,15 @@ fun RouteEditorDialog(
     relayEnabled: Boolean = false,
     onSave: (role: String, dashboardUrl: String, onResult: (String?) -> Unit) -> Unit,
     onDismiss: () -> Unit,
+    /** Role preselected when adding a new route ([original] == null). */
+    initialRole: String = "lan",
 ) {
     val uriHandler = LocalUriHandler.current
     val knownRoles = GATEWAY_ROUTE_EDITOR_ROLES
     var selectedRole by remember {
         mutableStateOf(
             when (original?.role?.lowercase()) {
-                null -> "lan"
+                null -> initialRole
                 in knownRoles -> original.role.lowercase()
                 else -> CUSTOM_ROLE
             },
