@@ -145,6 +145,34 @@ class ConnectionDashboardFieldsTest {
     }
 
     @Test
+    fun tailnetAlwaysOnConsent_defaultsOffForLegacyRecordsAndRoundTrips() {
+        // ADR 75 "Always connect via Tailscale": a record persisted before
+        // this field existed must decode with the consent bit off — no
+        // migration, so every already-saved connection keeps today's routing.
+        val legacyJson = """
+            {
+              "id": "conn-1",
+              "label": "local",
+              "apiServerUrl": "http://localhost:8642",
+              "relayUrl": "ws://localhost:8767",
+              "tokenStoreKey": "hermes_auth_conn"
+            }
+        """.trimIndent()
+
+        assertEquals(false, json.decodeFromString<Connection>(legacyJson).alwaysViaTailscale)
+        assertEquals(false, sampleConnection().alwaysViaTailscale)
+
+        // Opting in survives the store's encode → decode cycle; the Json above
+        // mirrors ConnectionStore's config (ignoreUnknownKeys + encodeDefaults).
+        val enabled = sampleConnection().copy(alwaysViaTailscale = true)
+        val decoded = json.decodeFromString<Connection>(
+            json.encodeToString(Connection.serializer(), enabled),
+        )
+
+        assertTrue(decoded.alwaysViaTailscale)
+    }
+
+    @Test
     fun buildRouteCandidates_createsLanAndTailscaleRoutes() {
         val routes = Connection.buildRouteCandidates(
             apiServerUrl = "http://192.168.1.25:8642",
