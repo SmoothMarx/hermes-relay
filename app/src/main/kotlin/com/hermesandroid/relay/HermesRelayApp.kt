@@ -13,10 +13,17 @@ import coil3.network.okhttp.OkHttpNetworkFetcherFactory
 import coil3.request.crossfade
 import com.hermesandroid.relay.bridge.UnattendedAccessManager
 import com.hermesandroid.relay.data.AppAnalytics
+import com.hermesandroid.relay.network.shared.HermesClients
+import com.hermesandroid.relay.network.shared.TailnetAddresses
+import com.hermesandroid.relay.network.shared.TailnetEnforcer
 import com.hermesandroid.relay.power.WakeLockManager
 import com.hermesandroid.relay.runtime.HermesProcessRuntime
 import com.hermesandroid.relay.util.AppForegroundTracker
 import com.hermesandroid.relay.util.CrashReporter
+import com.hermesandroid.relay.util.MediaSaver
+import okhttp3.Call
+import okhttp3.OkHttpClient
+import okhttp3.Request
 
 class HermesRelayApp : Application(), SingletonImageLoader.Factory {
 
@@ -41,7 +48,11 @@ class HermesRelayApp : Application(), SingletonImageLoader.Factory {
     override fun newImageLoader(context: PlatformContext): ImageLoader =
         ImageLoader.Builder(context)
             .components {
-                add(OkHttpNetworkFetcherFactory())
+                add(
+                    OkHttpNetworkFetcherFactory(
+                        callFactory = { HermesAwareCallFactory() },
+                    ),
+                )
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
                     add(AnimatedImageDecoder.Factory())
                 } else {
@@ -50,6 +61,23 @@ class HermesRelayApp : Application(), SingletonImageLoader.Factory {
             }
             .crossfade(true)
             .build()
+
+    private class HermesAwareCallFactory : Call.Factory {
+        private val plainClient: OkHttpClient by lazy {
+            OkHttpClient.Builder().build()
+        }
+
+        private val hermesClient: OkHttpClient by lazy {
+            HermesClients.build(OkHttpClient.Builder())
+        }
+
+        override fun newCall(request: Request): Call {
+            val authority = "${request.url.host.lowercase()}:${request.url.port}"
+            val useHermes = TailnetAddresses.isTailnetHost(request.url.host) ||
+                authority in MediaSaver.hermesRouteAuthoritiesSnapshot()
+            return (if (useHermes) hermesClient else plainClient).newCall(request)
+        }
+    }
 
     override fun onCreate() {
         super.onCreate()
@@ -74,6 +102,9 @@ class HermesRelayApp : Application(), SingletonImageLoader.Factory {
         // while the user is inside Hermes-Relay (the in-app
         // UnattendedGlobalBanner covers that case). Idempotent.
         AppForegroundTracker.initialize()
+        if (isMainApplicationProcess()) {
+            TailnetEnforcer.initialize(this)
+        }
     }
 
     private fun isMainApplicationProcess(): Boolean {
