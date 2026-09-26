@@ -63,6 +63,7 @@ REPOSITORY_CHECKS = (
     "check-user-docs-locales.py",
     "check-android-collection-apis.py",
     "check-android-hermes-transports.py",
+    "check-android-tailscale-settings.py",
     "check-android-release-notes.py",
     "check-version-tracks.py",
 )
