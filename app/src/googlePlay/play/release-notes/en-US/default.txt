@@ -1,3 +1,3 @@
-v1.17.0 - Voice over other apps and clearer conversations
+v1.18.0 - Pin a connection to Tailscale
 
-Use optional voice controls over other apps, with clear permission setup and an immediate Stop action. Answer Clarify batches one question at a time, with progress preserved across reconnects. Enjoy cleaner chat cards, recognizable profile names, and context previews that show what your connection supports. Phone control remains sideload-only.
+Pin a saved connection to your tailnet with Always connect via Tailscale, in Settings under Gateways. When it is on, only tailnet routes are eligible and every other route is refused with a clear blocked state instead of quietly falling back. It is per connection, app-scoped, and off by default.

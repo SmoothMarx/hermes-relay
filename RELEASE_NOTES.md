@@ -1,3 +1,37 @@
+# Hermes-Relay Android v1.18.0
+
+**Release Date:** September 26, 2026
+
+## Download
+
+> Installing on your phone? Download `hermes-relay-1.18.0-sideload-release.apk` and tap it for the full feature set, or install from [Google Play](https://play.google.com/store/apps/details?id=com.axiomlabs.hermesrelay).
+
+The `.aab` file is a Play Console upload bundle and cannot be installed by tapping it on a phone.
+
+Verify the download against `SHA256SUMS.txt`. See the [sideload guide](https://hermes-relay.dev/docs/guide/sideload) for installation help.
+
+## Summary
+
+A saved connection can now require the tailnet. With **Always connect via Tailscale** on, Hermes Relay refuses every other route for that connection instead of quietly falling back to LAN or public, and a blocked connection reports why instead of downgrading.
+
+## Added
+
+- Per-connection **Always connect via Tailscale**, directly under the Gateways row in Settings. When it is on, only tailnet routes are eligible for that connection; LAN and public candidates are refused.
+
+## Changed
+
+- The Routes tab carries a read-only Tailscale status row, and the connection's subpage holds the only switch.
+- A blocked state names the reason and the steps to fix it instead of falling back silently.
+
+## Install / Verify
+
+- App version: **1.18.0** (versionCode **58**).
+- The mode applies to Hermes Relay's own connections only. Which apps the device sends through Tailscale stays a Tailscale app setting, which the app explains but does not control.
+- Connections that do not opt in keep today's LAN and public route order and fallback.
+- Verification for this release: both Android debug flavors compile in CI on the exact commit, the Android repository gates pass, and the feature's unit tests run in the focused CI lane. Physical-device testing of an excluded-app split tunnel was not performed.
+
+---
+
 # Hermes-Relay Android v1.17.0
 
 **Release Date:** September 13, 2026
