@@ -23,6 +23,9 @@ import com.hermesandroid.relay.network.relay.models.Envelope
 import com.hermesandroid.relay.network.shared.EndpointResolver
 import com.hermesandroid.relay.network.shared.EndpointSurface
 import com.hermesandroid.relay.network.shared.fullJitterDelayMs
+import com.hermesandroid.relay.network.shared.HermesClients
+import com.hermesandroid.relay.network.shared.TailnetBlockReason
+import com.hermesandroid.relay.network.shared.TailnetRoutePolicy
 import com.hermesandroid.relay.network.shutdownOffMainThread
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -167,6 +170,9 @@ class ConnectionManager(
     private val dashboardRelayRequestProvider: (suspend (String) -> Request?)? = null,
     /** Deterministic race seam immediately before an ingress failure may poison route state. */
     private val beforeIngressFailureCommit: suspend () -> Unit = {},
+    // Tailnet policy hooks (D1 C8). Defaulted so existing unit tests compile unchanged.
+    private val tailnetPolicyActive: () -> Boolean = { false },
+    private val tailnetUrlCheck: (String) -> TailnetBlockReason? = { null },
 ) {
     private val supervisorJob = SupervisorJob()
     private val scope = CoroutineScope(supervisorJob + Dispatchers.IO)
@@ -199,7 +205,7 @@ class ConnectionManager(
                 builder.certificatePinner(CertificatePinner.DEFAULT)
             }
         }
-        return builder.build()
+        return HermesClients.build(builder)
     }
 
     @Volatile
@@ -279,6 +285,12 @@ class ConnectionManager(
      */
     private val _manualRoleOverride = MutableStateFlow<String?>(null)
     val manualRoleOverrideFlow: StateFlow<String?> = _manualRoleOverride.asStateFlow()
+
+    private val _tailnetResolveBlock = MutableStateFlow<TailnetBlockReason?>(null)
+    val tailnetResolveBlock: StateFlow<TailnetBlockReason?> = _tailnetResolveBlock.asStateFlow()
+
+    private fun writesTailnetBlock(surface: EndpointSurface): Boolean =
+        surface == EndpointSurface.Dashboard || surface == EndpointSurface.Standard
 
     private var networkCallback: ConnectivityManager.NetworkCallback? = null
 
@@ -391,7 +403,7 @@ class ConnectionManager(
             scheduleApiResolution()
             val relayResolved = resolveBestRelayEndpointSafe()
             val resolvedRelayUrl = relayResolved?.relayWebSocketUrl()?.takeIf { it.isNotBlank() }
-            val targetUrl = resolvedRelayUrl ?: url.takeIf { it.isNotBlank() }
+            val targetUrl = resolvedRelayUrl ?: url.takeIf { it.isNotBlank() && !tailnetPolicyActive() }
             _activeRelayEndpoint.value = relayResolved
             if (resolved != null) {
                 _activeEndpoint.value = resolved
@@ -547,6 +559,22 @@ class ConnectionManager(
             )
             return
         }
+
+        tailnetUrlCheck(normalized)?.let { reason ->
+            Log.e(TAG, "Blocked non-Tailscale relay socket — Always connect via Tailscale is on")
+            DiagnosticsLog.record(
+                category = DiagnosticCategory.Relay,
+                severity = DiagnosticSeverity.Error,
+                title = context?.getString(R.string.tailnet_diag_blocked) ?: "Blocked: not a Tailscale route",
+                detail = reason.name,
+                operation = "Open Relay WebSocket",
+                configuredUrl = url,
+                requestUrl = normalized,
+            )
+            _tailnetResolveBlock.value = reason
+            return
+        }
+
         if (isRelayRateLimitBackoffActive(
                 rateLimitBackoffUntilMs,
                 SystemClock.elapsedRealtime(),
@@ -651,8 +679,16 @@ class ConnectionManager(
             } ?: emptyList()
         }
 
-        val eligibleEndpoints = endpoints.filter(candidateFilter)
-        if (eligibleEndpoints.isEmpty()) return null
+        val policyOn = tailnetPolicyActive()
+        val preFilter = endpoints.filter(candidateFilter)
+        if (preFilter.isEmpty()) return null
+        val eligibleEndpoints = if (policyOn) TailnetRoutePolicy.filter(preFilter) else preFilter
+        if (eligibleEndpoints.isEmpty()) {
+            if (policyOn && writesTailnetBlock(surface)) {
+                _tailnetResolveBlock.value = TailnetBlockReason.PolicyNoEligibleRoute
+            }
+            return null
+        }
 
         // Manual override: if the user pinned a role in the Endpoints card,
         // try that one first; fall through to the strict-priority algorithm
@@ -664,13 +700,20 @@ class ConnectionManager(
             if (preferred != null) {
                 // Single-element list still respects the 2s probe gate.
                 val winner = resolver.resolve(listOf(preferred), surface)
+                if (policyOn && writesTailnetBlock(surface)) {
+                    _tailnetResolveBlock.value = null
+                }
                 if (winner != null) return winner
                 Log.i(TAG, "manualRoleOverride=$preferredRole not reachable — " +
                     "falling through to strict-priority resolve")
             }
         }
 
-        return resolver.resolve(eligibleEndpoints, surface)
+        val winner = resolver.resolve(eligibleEndpoints, surface)
+        if (policyOn && writesTailnetBlock(surface)) {
+            _tailnetResolveBlock.value = if (winner == null) TailnetBlockReason.HostUnreachable else null
+        }
+        return winner
     }
 
     /** Every Relay selection path must apply the same live ownership fence. */
