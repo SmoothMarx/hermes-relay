@@ -57,7 +57,7 @@ Hermes-host transport built through `HermesClients`; tailnet-ness inferred from 
 
 ## Slice A — foundation
 
-Worktree: `/home/smoothmarx/Projects/_worktrees/hermes-relay-tailscale` (branch `feat/android-tailscale-always-on`, base `e5989426`). Six tasks, strictly sequential
+Worktree: `<repo>` (branch `feat/android-tailscale-always-on`, base `e5989426`). Six tasks, strictly sequential
 (A1 → A2/A3 → A4 → A5 → A6; A2 and A3 only need A1). Every task creates exactly one production file and its
 unit test, and nothing else. Package for every file: `com.hermesandroid.relay.net.tailnet`.
 
@@ -452,7 +452,7 @@ class TailnetAddressesTest {
 }
 ```
 - **Steps:**
-  1. `cd /home/smoothmarx/Projects/_worktrees/hermes-relay-tailscale` and confirm the branch: `git rev-parse --abbrev-ref HEAD` → `feat/android-tailscale-always-on`.
+  1. `cd <repo>` and confirm the branch: `git rev-parse --abbrev-ref HEAD` → `feat/android-tailscale-always-on`.
   2. Symbol check (must print nothing: the package is new): `grep -rn 'package com.hermesandroid.relay.net.tailnet' app/src`.
   3. Create `app/src/main/kotlin/com/hermesandroid/relay/net/tailnet/TailnetAddresses.kt` with the first block verbatim (the write tool creates missing directories).
   4. Create `app/src/test/kotlin/com/hermesandroid/relay/net/tailnet/TailnetAddressesTest.kt` with the second block verbatim.
@@ -460,14 +460,14 @@ class TailnetAddressesTest {
   6. `git add app/src/main/kotlin/com/hermesandroid/relay/net/tailnet/TailnetAddresses.kt app/src/test/kotlin/com/hermesandroid/relay/net/tailnet/TailnetAddressesTest.kt`
   7. `git commit -m "feat(android): add tailnet address predicates"`
 - **Verify:** (run each command from the worktree; expected output after the arrow)
-  1. `cd /home/smoothmarx/Projects/_worktrees/hermes-relay-tailscale && test -f app/src/main/kotlin/com/hermesandroid/relay/net/tailnet/TailnetAddresses.kt && test -f app/src/test/kotlin/com/hermesandroid/relay/net/tailnet/TailnetAddressesTest.kt && echo present` → `present`
-  2. `cd /home/smoothmarx/Projects/_worktrees/hermes-relay-tailscale && sha256sum app/src/main/kotlin/com/hermesandroid/relay/net/tailnet/TailnetAddresses.kt app/src/test/kotlin/com/hermesandroid/relay/net/tailnet/TailnetAddressesTest.kt` → `9f7498785ad2cff2dbdb6919ec28a54ce834decca67cfd4f801b7f1e2aeb56ca  app/src/main/kotlin/com/hermesandroid/relay/net/tailnet/TailnetAddresses.kt` and `a61474580215487b76f9c5db38c35d09c76eb144f6f2847c49d71b186706d267  app/src/test/kotlin/com/hermesandroid/relay/net/tailnet/TailnetAddressesTest.kt` (if a hash differs, re-copy the block exactly; a difference caused ONLY by the final newline is acceptable and must be reported under Deviations)
-  3. `cd /home/smoothmarx/Projects/_worktrees/hermes-relay-tailscale && python3 -c "import pathlib,sys; [print(p, (t:=pathlib.Path(p).read_text()).count('{')-t.count('}'), t.count('(')-t.count(')')) for p in sys.argv[1:]]" app/src/main/kotlin/com/hermesandroid/relay/net/tailnet/TailnetAddresses.kt app/src/test/kotlin/com/hermesandroid/relay/net/tailnet/TailnetAddressesTest.kt` → both lines end with `0 0`
-  4. `cd /home/smoothmarx/Projects/_worktrees/hermes-relay-tailscale && grep -c '^package com.hermesandroid.relay.net.tailnet$' app/src/main/kotlin/com/hermesandroid/relay/net/tailnet/TailnetAddresses.kt app/src/test/kotlin/com/hermesandroid/relay/net/tailnet/TailnetAddressesTest.kt` → `app/src/main/kotlin/com/hermesandroid/relay/net/tailnet/TailnetAddresses.kt:1` and `app/src/test/kotlin/com/hermesandroid/relay/net/tailnet/TailnetAddressesTest.kt:1`
-  5. `cd /home/smoothmarx/Projects/_worktrees/hermes-relay-tailscale && python3 scripts/check-android-collection-apis.py` → `Android collection API compatibility check passed (Kotlin sources)` (exit 0)
-  6. `cd /home/smoothmarx/Projects/_worktrees/hermes-relay-tailscale && grep -rnE 'bindProcessToNetwork|setProcessDefaultNetwork|VpnService|setUnderlyingNetworks' app/src/main; echo rc=$?` → no match lines, then `rc=1`
-  7. `cd /home/smoothmarx/Projects/_worktrees/hermes-relay-tailscale && git diff --stat e5989426 -- gradle/libs.versions.toml app/build.gradle.kts` → empty output (no dependency change)
-  8. `cd /home/smoothmarx/Projects/_worktrees/hermes-relay-tailscale && git status --short` → exactly `?? app/src/main/kotlin/com/hermesandroid/relay/net/tailnet/TailnetAddresses.kt` and `?? app/src/test/kotlin/com/hermesandroid/relay/net/tailnet/TailnetAddressesTest.kt` before the commit (the first task shows the directory form `?? app/src/main/kotlin/com/hermesandroid/relay/net/` / `?? app/src/test/kotlin/com/hermesandroid/relay/net/` instead — also acceptable); after the commit: `git show --stat --format=%s HEAD` lists exactly these 2 files and the subject below.
+  1. `cd <repo> && test -f app/src/main/kotlin/com/hermesandroid/relay/net/tailnet/TailnetAddresses.kt && test -f app/src/test/kotlin/com/hermesandroid/relay/net/tailnet/TailnetAddressesTest.kt && echo present` → `present`
+  2. `cd <repo> && sha256sum app/src/main/kotlin/com/hermesandroid/relay/net/tailnet/TailnetAddresses.kt app/src/test/kotlin/com/hermesandroid/relay/net/tailnet/TailnetAddressesTest.kt` → `9f7498785ad2cff2dbdb6919ec28a54ce834decca67cfd4f801b7f1e2aeb56ca  app/src/main/kotlin/com/hermesandroid/relay/net/tailnet/TailnetAddresses.kt` and `a61474580215487b76f9c5db38c35d09c76eb144f6f2847c49d71b186706d267  app/src/test/kotlin/com/hermesandroid/relay/net/tailnet/TailnetAddressesTest.kt` (if a hash differs, re-copy the block exactly; a difference caused ONLY by the final newline is acceptable and must be reported under Deviations)
+  3. `cd <repo> && python3 -c "import pathlib,sys; [print(p, (t:=pathlib.Path(p).read_text()).count('{')-t.count('}'), t.count('(')-t.count(')')) for p in sys.argv[1:]]" app/src/main/kotlin/com/hermesandroid/relay/net/tailnet/TailnetAddresses.kt app/src/test/kotlin/com/hermesandroid/relay/net/tailnet/TailnetAddressesTest.kt` → both lines end with `0 0`
+  4. `cd <repo> && grep -c '^package com.hermesandroid.relay.net.tailnet$' app/src/main/kotlin/com/hermesandroid/relay/net/tailnet/TailnetAddresses.kt app/src/test/kotlin/com/hermesandroid/relay/net/tailnet/TailnetAddressesTest.kt` → `app/src/main/kotlin/com/hermesandroid/relay/net/tailnet/TailnetAddresses.kt:1` and `app/src/test/kotlin/com/hermesandroid/relay/net/tailnet/TailnetAddressesTest.kt:1`
+  5. `cd <repo> && python3 scripts/check-android-collection-apis.py` → `Android collection API compatibility check passed (Kotlin sources)` (exit 0)
+  6. `cd <repo> && grep -rnE 'bindProcessToNetwork|setProcessDefaultNetwork|VpnService|setUnderlyingNetworks' app/src/main; echo rc=$?` → no match lines, then `rc=1`
+  7. `cd <repo> && git diff --stat e5989426 -- gradle/libs.versions.toml app/build.gradle.kts` → empty output (no dependency change)
+  8. `cd <repo> && git status --short` → exactly `?? app/src/main/kotlin/com/hermesandroid/relay/net/tailnet/TailnetAddresses.kt` and `?? app/src/test/kotlin/com/hermesandroid/relay/net/tailnet/TailnetAddressesTest.kt` before the commit (the first task shows the directory form `?? app/src/main/kotlin/com/hermesandroid/relay/net/` / `?? app/src/test/kotlin/com/hermesandroid/relay/net/` instead — also acceptable); after the commit: `git show --stat --format=%s HEAD` lists exactly these 2 files and the subject below.
   9. NOT verifiable on this host (no JDK): compilation and the unit tests in `app/src/test/kotlin/com/hermesandroid/relay/net/tailnet/TailnetAddressesTest.kt`. They run in cloud CI once slice D registers the test class in `FOCUSED_TESTS`; report them under "what you could NOT verify".
 - **Commit:** `feat(android): add tailnet address predicates`
 
@@ -691,7 +691,7 @@ class TailnetRoutePolicyTest {
 }
 ```
 - **Steps:**
-  1. `cd /home/smoothmarx/Projects/_worktrees/hermes-relay-tailscale` and confirm the branch: `git rev-parse --abbrev-ref HEAD` → `feat/android-tailscale-always-on`.
+  1. `cd <repo>` and confirm the branch: `git rev-parse --abbrev-ref HEAD` → `feat/android-tailscale-always-on`.
   2. Symbol check — the route type and fields this task uses must exist exactly: `grep -n 'data class EndpointCandidate\|val experimental\|val broker: BrokerEndpoint\|val proxy: ProxyEndpoint\|val dashboard: DashboardEndpoint\|val relay: RelayEndpoint\|val api: ApiEndpoint\|val url: String' app/src/main/kotlin/com/hermesandroid/relay/data/Endpoint.kt` → hits for every name (EndpointCandidate at line 39; `ApiEndpoint.url` is the computed property at lines 71-73). If any is missing, STOP and report (do not redesign).
   3. Create `app/src/main/kotlin/com/hermesandroid/relay/net/tailnet/TailnetRoutePolicy.kt` with the first block verbatim (the write tool creates missing directories).
   4. Create `app/src/test/kotlin/com/hermesandroid/relay/net/tailnet/TailnetRoutePolicyTest.kt` with the second block verbatim.
@@ -699,14 +699,14 @@ class TailnetRoutePolicyTest {
   6. `git add app/src/main/kotlin/com/hermesandroid/relay/net/tailnet/TailnetRoutePolicy.kt app/src/test/kotlin/com/hermesandroid/relay/net/tailnet/TailnetRoutePolicyTest.kt`
   7. `git commit -m "feat(android): add tailnet route eligibility policy"`
 - **Verify:** (run each command from the worktree; expected output after the arrow)
-  1. `cd /home/smoothmarx/Projects/_worktrees/hermes-relay-tailscale && test -f app/src/main/kotlin/com/hermesandroid/relay/net/tailnet/TailnetRoutePolicy.kt && test -f app/src/test/kotlin/com/hermesandroid/relay/net/tailnet/TailnetRoutePolicyTest.kt && echo present` → `present`
-  2. `cd /home/smoothmarx/Projects/_worktrees/hermes-relay-tailscale && sha256sum app/src/main/kotlin/com/hermesandroid/relay/net/tailnet/TailnetRoutePolicy.kt app/src/test/kotlin/com/hermesandroid/relay/net/tailnet/TailnetRoutePolicyTest.kt` → `cc6cd5af91786b1e0089db6afe1cf0a8864d817400104761efb77d2f2a93727b  app/src/main/kotlin/com/hermesandroid/relay/net/tailnet/TailnetRoutePolicy.kt` and `10afb5fd504bb12fb21214759d31da502440d19edddafb365ad97ffef4a239d2  app/src/test/kotlin/com/hermesandroid/relay/net/tailnet/TailnetRoutePolicyTest.kt` (if a hash differs, re-copy the block exactly; a difference caused ONLY by the final newline is acceptable and must be reported under Deviations)
-  3. `cd /home/smoothmarx/Projects/_worktrees/hermes-relay-tailscale && python3 -c "import pathlib,sys; [print(p, (t:=pathlib.Path(p).read_text()).count('{')-t.count('}'), t.count('(')-t.count(')')) for p in sys.argv[1:]]" app/src/main/kotlin/com/hermesandroid/relay/net/tailnet/TailnetRoutePolicy.kt app/src/test/kotlin/com/hermesandroid/relay/net/tailnet/TailnetRoutePolicyTest.kt` → both lines end with `0 0`
-  4. `cd /home/smoothmarx/Projects/_worktrees/hermes-relay-tailscale && grep -c '^package com.hermesandroid.relay.net.tailnet$' app/src/main/kotlin/com/hermesandroid/relay/net/tailnet/TailnetRoutePolicy.kt app/src/test/kotlin/com/hermesandroid/relay/net/tailnet/TailnetRoutePolicyTest.kt` → `app/src/main/kotlin/com/hermesandroid/relay/net/tailnet/TailnetRoutePolicy.kt:1` and `app/src/test/kotlin/com/hermesandroid/relay/net/tailnet/TailnetRoutePolicyTest.kt:1`
-  5. `cd /home/smoothmarx/Projects/_worktrees/hermes-relay-tailscale && python3 scripts/check-android-collection-apis.py` → `Android collection API compatibility check passed (Kotlin sources)` (exit 0)
-  6. `cd /home/smoothmarx/Projects/_worktrees/hermes-relay-tailscale && grep -rnE 'bindProcessToNetwork|setProcessDefaultNetwork|VpnService|setUnderlyingNetworks' app/src/main; echo rc=$?` → no match lines, then `rc=1`
-  7. `cd /home/smoothmarx/Projects/_worktrees/hermes-relay-tailscale && git diff --stat e5989426 -- gradle/libs.versions.toml app/build.gradle.kts` → empty output (no dependency change)
-  8. `cd /home/smoothmarx/Projects/_worktrees/hermes-relay-tailscale && git status --short` → exactly `?? app/src/main/kotlin/com/hermesandroid/relay/net/tailnet/TailnetRoutePolicy.kt` and `?? app/src/test/kotlin/com/hermesandroid/relay/net/tailnet/TailnetRoutePolicyTest.kt` before the commit (the first task shows the directory form `?? app/src/main/kotlin/com/hermesandroid/relay/net/` / `?? app/src/test/kotlin/com/hermesandroid/relay/net/` instead — also acceptable); after the commit: `git show --stat --format=%s HEAD` lists exactly these 2 files and the subject below.
+  1. `cd <repo> && test -f app/src/main/kotlin/com/hermesandroid/relay/net/tailnet/TailnetRoutePolicy.kt && test -f app/src/test/kotlin/com/hermesandroid/relay/net/tailnet/TailnetRoutePolicyTest.kt && echo present` → `present`
+  2. `cd <repo> && sha256sum app/src/main/kotlin/com/hermesandroid/relay/net/tailnet/TailnetRoutePolicy.kt app/src/test/kotlin/com/hermesandroid/relay/net/tailnet/TailnetRoutePolicyTest.kt` → `cc6cd5af91786b1e0089db6afe1cf0a8864d817400104761efb77d2f2a93727b  app/src/main/kotlin/com/hermesandroid/relay/net/tailnet/TailnetRoutePolicy.kt` and `10afb5fd504bb12fb21214759d31da502440d19edddafb365ad97ffef4a239d2  app/src/test/kotlin/com/hermesandroid/relay/net/tailnet/TailnetRoutePolicyTest.kt` (if a hash differs, re-copy the block exactly; a difference caused ONLY by the final newline is acceptable and must be reported under Deviations)
+  3. `cd <repo> && python3 -c "import pathlib,sys; [print(p, (t:=pathlib.Path(p).read_text()).count('{')-t.count('}'), t.count('(')-t.count(')')) for p in sys.argv[1:]]" app/src/main/kotlin/com/hermesandroid/relay/net/tailnet/TailnetRoutePolicy.kt app/src/test/kotlin/com/hermesandroid/relay/net/tailnet/TailnetRoutePolicyTest.kt` → both lines end with `0 0`
+  4. `cd <repo> && grep -c '^package com.hermesandroid.relay.net.tailnet$' app/src/main/kotlin/com/hermesandroid/relay/net/tailnet/TailnetRoutePolicy.kt app/src/test/kotlin/com/hermesandroid/relay/net/tailnet/TailnetRoutePolicyTest.kt` → `app/src/main/kotlin/com/hermesandroid/relay/net/tailnet/TailnetRoutePolicy.kt:1` and `app/src/test/kotlin/com/hermesandroid/relay/net/tailnet/TailnetRoutePolicyTest.kt:1`
+  5. `cd <repo> && python3 scripts/check-android-collection-apis.py` → `Android collection API compatibility check passed (Kotlin sources)` (exit 0)
+  6. `cd <repo> && grep -rnE 'bindProcessToNetwork|setProcessDefaultNetwork|VpnService|setUnderlyingNetworks' app/src/main; echo rc=$?` → no match lines, then `rc=1`
+  7. `cd <repo> && git diff --stat e5989426 -- gradle/libs.versions.toml app/build.gradle.kts` → empty output (no dependency change)
+  8. `cd <repo> && git status --short` → exactly `?? app/src/main/kotlin/com/hermesandroid/relay/net/tailnet/TailnetRoutePolicy.kt` and `?? app/src/test/kotlin/com/hermesandroid/relay/net/tailnet/TailnetRoutePolicyTest.kt` before the commit (the first task shows the directory form `?? app/src/main/kotlin/com/hermesandroid/relay/net/` / `?? app/src/test/kotlin/com/hermesandroid/relay/net/` instead — also acceptable); after the commit: `git show --stat --format=%s HEAD` lists exactly these 2 files and the subject below.
   9. NOT verifiable on this host (no JDK): compilation and the unit tests in `app/src/test/kotlin/com/hermesandroid/relay/net/tailnet/TailnetRoutePolicyTest.kt`. They run in cloud CI once slice D registers the test class in `FOCUSED_TESTS`; report them under "what you could NOT verify".
 - **Commit:** `feat(android): add tailnet route eligibility policy`
 
@@ -880,7 +880,7 @@ class TailnetNetworkClassifierTest {
 }
 ```
 - **Steps:**
-  1. `cd /home/smoothmarx/Projects/_worktrees/hermes-relay-tailscale` and confirm the branch: `git rev-parse --abbrev-ref HEAD` → `feat/android-tailscale-always-on`.
+  1. `cd <repo>` and confirm the branch: `git rev-parse --abbrev-ref HEAD` → `feat/android-tailscale-always-on`.
   2. Symbol check: `grep -n 'fun ipLiteralOrNull\|fun isTailnetAddress' app/src/main/kotlin/com/hermesandroid/relay/net/tailnet/TailnetAddresses.kt` → 2 hits (from Task A1).
   3. Create `app/src/main/kotlin/com/hermesandroid/relay/net/tailnet/TailnetNetworkClassifier.kt` with the first block verbatim (the write tool creates missing directories).
   4. Create `app/src/test/kotlin/com/hermesandroid/relay/net/tailnet/TailnetNetworkClassifierTest.kt` with the second block verbatim.
@@ -888,14 +888,14 @@ class TailnetNetworkClassifierTest {
   6. `git add app/src/main/kotlin/com/hermesandroid/relay/net/tailnet/TailnetNetworkClassifier.kt app/src/test/kotlin/com/hermesandroid/relay/net/tailnet/TailnetNetworkClassifierTest.kt`
   7. `git commit -m "feat(android): add address-based tailnet network classifier"`
 - **Verify:** (run each command from the worktree; expected output after the arrow)
-  1. `cd /home/smoothmarx/Projects/_worktrees/hermes-relay-tailscale && test -f app/src/main/kotlin/com/hermesandroid/relay/net/tailnet/TailnetNetworkClassifier.kt && test -f app/src/test/kotlin/com/hermesandroid/relay/net/tailnet/TailnetNetworkClassifierTest.kt && echo present` → `present`
-  2. `cd /home/smoothmarx/Projects/_worktrees/hermes-relay-tailscale && sha256sum app/src/main/kotlin/com/hermesandroid/relay/net/tailnet/TailnetNetworkClassifier.kt app/src/test/kotlin/com/hermesandroid/relay/net/tailnet/TailnetNetworkClassifierTest.kt` → `5596073dea552379ea0ae4b170a07c37dfd2bd925a1b834218d8096c1c0dfab2  app/src/main/kotlin/com/hermesandroid/relay/net/tailnet/TailnetNetworkClassifier.kt` and `80c6608efb9a3227c94c3bd03191c015158730a51fab70db3d36afac182c4c86  app/src/test/kotlin/com/hermesandroid/relay/net/tailnet/TailnetNetworkClassifierTest.kt` (if a hash differs, re-copy the block exactly; a difference caused ONLY by the final newline is acceptable and must be reported under Deviations)
-  3. `cd /home/smoothmarx/Projects/_worktrees/hermes-relay-tailscale && python3 -c "import pathlib,sys; [print(p, (t:=pathlib.Path(p).read_text()).count('{')-t.count('}'), t.count('(')-t.count(')')) for p in sys.argv[1:]]" app/src/main/kotlin/com/hermesandroid/relay/net/tailnet/TailnetNetworkClassifier.kt app/src/test/kotlin/com/hermesandroid/relay/net/tailnet/TailnetNetworkClassifierTest.kt` → both lines end with `0 0`
-  4. `cd /home/smoothmarx/Projects/_worktrees/hermes-relay-tailscale && grep -c '^package com.hermesandroid.relay.net.tailnet$' app/src/main/kotlin/com/hermesandroid/relay/net/tailnet/TailnetNetworkClassifier.kt app/src/test/kotlin/com/hermesandroid/relay/net/tailnet/TailnetNetworkClassifierTest.kt` → `app/src/main/kotlin/com/hermesandroid/relay/net/tailnet/TailnetNetworkClassifier.kt:1` and `app/src/test/kotlin/com/hermesandroid/relay/net/tailnet/TailnetNetworkClassifierTest.kt:1`
-  5. `cd /home/smoothmarx/Projects/_worktrees/hermes-relay-tailscale && python3 scripts/check-android-collection-apis.py` → `Android collection API compatibility check passed (Kotlin sources)` (exit 0)
-  6. `cd /home/smoothmarx/Projects/_worktrees/hermes-relay-tailscale && grep -rnE 'bindProcessToNetwork|setProcessDefaultNetwork|VpnService|setUnderlyingNetworks' app/src/main; echo rc=$?` → no match lines, then `rc=1`
-  7. `cd /home/smoothmarx/Projects/_worktrees/hermes-relay-tailscale && git diff --stat e5989426 -- gradle/libs.versions.toml app/build.gradle.kts` → empty output (no dependency change)
-  8. `cd /home/smoothmarx/Projects/_worktrees/hermes-relay-tailscale && git status --short` → exactly `?? app/src/main/kotlin/com/hermesandroid/relay/net/tailnet/TailnetNetworkClassifier.kt` and `?? app/src/test/kotlin/com/hermesandroid/relay/net/tailnet/TailnetNetworkClassifierTest.kt` before the commit (the first task shows the directory form `?? app/src/main/kotlin/com/hermesandroid/relay/net/` / `?? app/src/test/kotlin/com/hermesandroid/relay/net/` instead — also acceptable); after the commit: `git show --stat --format=%s HEAD` lists exactly these 2 files and the subject below.
+  1. `cd <repo> && test -f app/src/main/kotlin/com/hermesandroid/relay/net/tailnet/TailnetNetworkClassifier.kt && test -f app/src/test/kotlin/com/hermesandroid/relay/net/tailnet/TailnetNetworkClassifierTest.kt && echo present` → `present`
+  2. `cd <repo> && sha256sum app/src/main/kotlin/com/hermesandroid/relay/net/tailnet/TailnetNetworkClassifier.kt app/src/test/kotlin/com/hermesandroid/relay/net/tailnet/TailnetNetworkClassifierTest.kt` → `5596073dea552379ea0ae4b170a07c37dfd2bd925a1b834218d8096c1c0dfab2  app/src/main/kotlin/com/hermesandroid/relay/net/tailnet/TailnetNetworkClassifier.kt` and `80c6608efb9a3227c94c3bd03191c015158730a51fab70db3d36afac182c4c86  app/src/test/kotlin/com/hermesandroid/relay/net/tailnet/TailnetNetworkClassifierTest.kt` (if a hash differs, re-copy the block exactly; a difference caused ONLY by the final newline is acceptable and must be reported under Deviations)
+  3. `cd <repo> && python3 -c "import pathlib,sys; [print(p, (t:=pathlib.Path(p).read_text()).count('{')-t.count('}'), t.count('(')-t.count(')')) for p in sys.argv[1:]]" app/src/main/kotlin/com/hermesandroid/relay/net/tailnet/TailnetNetworkClassifier.kt app/src/test/kotlin/com/hermesandroid/relay/net/tailnet/TailnetNetworkClassifierTest.kt` → both lines end with `0 0`
+  4. `cd <repo> && grep -c '^package com.hermesandroid.relay.net.tailnet$' app/src/main/kotlin/com/hermesandroid/relay/net/tailnet/TailnetNetworkClassifier.kt app/src/test/kotlin/com/hermesandroid/relay/net/tailnet/TailnetNetworkClassifierTest.kt` → `app/src/main/kotlin/com/hermesandroid/relay/net/tailnet/TailnetNetworkClassifier.kt:1` and `app/src/test/kotlin/com/hermesandroid/relay/net/tailnet/TailnetNetworkClassifierTest.kt:1`
+  5. `cd <repo> && python3 scripts/check-android-collection-apis.py` → `Android collection API compatibility check passed (Kotlin sources)` (exit 0)
+  6. `cd <repo> && grep -rnE 'bindProcessToNetwork|setProcessDefaultNetwork|VpnService|setUnderlyingNetworks' app/src/main; echo rc=$?` → no match lines, then `rc=1`
+  7. `cd <repo> && git diff --stat e5989426 -- gradle/libs.versions.toml app/build.gradle.kts` → empty output (no dependency change)
+  8. `cd <repo> && git status --short` → exactly `?? app/src/main/kotlin/com/hermesandroid/relay/net/tailnet/TailnetNetworkClassifier.kt` and `?? app/src/test/kotlin/com/hermesandroid/relay/net/tailnet/TailnetNetworkClassifierTest.kt` before the commit (the first task shows the directory form `?? app/src/main/kotlin/com/hermesandroid/relay/net/` / `?? app/src/test/kotlin/com/hermesandroid/relay/net/` instead — also acceptable); after the commit: `git show --stat --format=%s HEAD` lists exactly these 2 files and the subject below.
   9. NOT verifiable on this host (no JDK): compilation and the unit tests in `app/src/test/kotlin/com/hermesandroid/relay/net/tailnet/TailnetNetworkClassifierTest.kt`. They run in cloud CI once slice D registers the test class in `FOCUSED_TESTS`; report them under "what you could NOT verify".
 - **Commit:** `feat(android): add address-based tailnet network classifier`
 
@@ -1435,7 +1435,7 @@ class TailnetNetworkSourceTest {
 }
 ```
 - **Steps:**
-  1. `cd /home/smoothmarx/Projects/_worktrees/hermes-relay-tailscale` and confirm the branch: `git rev-parse --abbrev-ref HEAD` → `feat/android-tailscale-always-on`.
+  1. `cd <repo>` and confirm the branch: `git rev-parse --abbrev-ref HEAD` → `feat/android-tailscale-always-on`.
   2. Symbol check: `grep -n 'object TailnetNetworkClassifier\|data class NetworkSnapshot' app/src/main/kotlin/com/hermesandroid/relay/net/tailnet/TailnetNetworkClassifier.kt` → 2 hits; `grep -n 'testImplementation(libs.mockk)\|testImplementation(libs.kotlinx.coroutines.test)' app/build.gradle.kts` → 2 hits (mockk is used by the test double; no new dependency).
   3. Create `app/src/main/kotlin/com/hermesandroid/relay/net/tailnet/TailnetNetworkSource.kt` with the first block verbatim (the write tool creates missing directories).
   4. Create `app/src/test/kotlin/com/hermesandroid/relay/net/tailnet/TailnetNetworkSourceTest.kt` with the second block verbatim.
@@ -1443,14 +1443,14 @@ class TailnetNetworkSourceTest {
   6. `git add app/src/main/kotlin/com/hermesandroid/relay/net/tailnet/TailnetNetworkSource.kt app/src/test/kotlin/com/hermesandroid/relay/net/tailnet/TailnetNetworkSourceTest.kt`
   7. `git commit -m "feat(android): add tailnet network source isolation boundary"`
 - **Verify:** (run each command from the worktree; expected output after the arrow)
-  1. `cd /home/smoothmarx/Projects/_worktrees/hermes-relay-tailscale && test -f app/src/main/kotlin/com/hermesandroid/relay/net/tailnet/TailnetNetworkSource.kt && test -f app/src/test/kotlin/com/hermesandroid/relay/net/tailnet/TailnetNetworkSourceTest.kt && echo present` → `present`
-  2. `cd /home/smoothmarx/Projects/_worktrees/hermes-relay-tailscale && sha256sum app/src/main/kotlin/com/hermesandroid/relay/net/tailnet/TailnetNetworkSource.kt app/src/test/kotlin/com/hermesandroid/relay/net/tailnet/TailnetNetworkSourceTest.kt` → `d1baad93741ff51f74ddec0ecc9238c480eb4dcf1298f76e0d903f76cb7bcaae  app/src/main/kotlin/com/hermesandroid/relay/net/tailnet/TailnetNetworkSource.kt` and `a74a4da65dd47d2d9bd2f9bc7132a6521e6dbaef44036cca15261ab476e61168  app/src/test/kotlin/com/hermesandroid/relay/net/tailnet/TailnetNetworkSourceTest.kt` (if a hash differs, re-copy the block exactly; a difference caused ONLY by the final newline is acceptable and must be reported under Deviations)
-  3. `cd /home/smoothmarx/Projects/_worktrees/hermes-relay-tailscale && python3 -c "import pathlib,sys; [print(p, (t:=pathlib.Path(p).read_text()).count('{')-t.count('}'), t.count('(')-t.count(')')) for p in sys.argv[1:]]" app/src/main/kotlin/com/hermesandroid/relay/net/tailnet/TailnetNetworkSource.kt app/src/test/kotlin/com/hermesandroid/relay/net/tailnet/TailnetNetworkSourceTest.kt` → both lines end with `0 0`
-  4. `cd /home/smoothmarx/Projects/_worktrees/hermes-relay-tailscale && grep -c '^package com.hermesandroid.relay.net.tailnet$' app/src/main/kotlin/com/hermesandroid/relay/net/tailnet/TailnetNetworkSource.kt app/src/test/kotlin/com/hermesandroid/relay/net/tailnet/TailnetNetworkSourceTest.kt` → `app/src/main/kotlin/com/hermesandroid/relay/net/tailnet/TailnetNetworkSource.kt:1` and `app/src/test/kotlin/com/hermesandroid/relay/net/tailnet/TailnetNetworkSourceTest.kt:1`
-  5. `cd /home/smoothmarx/Projects/_worktrees/hermes-relay-tailscale && python3 scripts/check-android-collection-apis.py` → `Android collection API compatibility check passed (Kotlin sources)` (exit 0)
-  6. `cd /home/smoothmarx/Projects/_worktrees/hermes-relay-tailscale && grep -rnE 'bindProcessToNetwork|setProcessDefaultNetwork|VpnService|setUnderlyingNetworks' app/src/main; echo rc=$?` → no match lines, then `rc=1`
-  7. `cd /home/smoothmarx/Projects/_worktrees/hermes-relay-tailscale && git diff --stat e5989426 -- gradle/libs.versions.toml app/build.gradle.kts` → empty output (no dependency change)
-  8. `cd /home/smoothmarx/Projects/_worktrees/hermes-relay-tailscale && git status --short` → exactly `?? app/src/main/kotlin/com/hermesandroid/relay/net/tailnet/TailnetNetworkSource.kt` and `?? app/src/test/kotlin/com/hermesandroid/relay/net/tailnet/TailnetNetworkSourceTest.kt` before the commit (the first task shows the directory form `?? app/src/main/kotlin/com/hermesandroid/relay/net/` / `?? app/src/test/kotlin/com/hermesandroid/relay/net/` instead — also acceptable); after the commit: `git show --stat --format=%s HEAD` lists exactly these 2 files and the subject below.
+  1. `cd <repo> && test -f app/src/main/kotlin/com/hermesandroid/relay/net/tailnet/TailnetNetworkSource.kt && test -f app/src/test/kotlin/com/hermesandroid/relay/net/tailnet/TailnetNetworkSourceTest.kt && echo present` → `present`
+  2. `cd <repo> && sha256sum app/src/main/kotlin/com/hermesandroid/relay/net/tailnet/TailnetNetworkSource.kt app/src/test/kotlin/com/hermesandroid/relay/net/tailnet/TailnetNetworkSourceTest.kt` → `d1baad93741ff51f74ddec0ecc9238c480eb4dcf1298f76e0d903f76cb7bcaae  app/src/main/kotlin/com/hermesandroid/relay/net/tailnet/TailnetNetworkSource.kt` and `a74a4da65dd47d2d9bd2f9bc7132a6521e6dbaef44036cca15261ab476e61168  app/src/test/kotlin/com/hermesandroid/relay/net/tailnet/TailnetNetworkSourceTest.kt` (if a hash differs, re-copy the block exactly; a difference caused ONLY by the final newline is acceptable and must be reported under Deviations)
+  3. `cd <repo> && python3 -c "import pathlib,sys; [print(p, (t:=pathlib.Path(p).read_text()).count('{')-t.count('}'), t.count('(')-t.count(')')) for p in sys.argv[1:]]" app/src/main/kotlin/com/hermesandroid/relay/net/tailnet/TailnetNetworkSource.kt app/src/test/kotlin/com/hermesandroid/relay/net/tailnet/TailnetNetworkSourceTest.kt` → both lines end with `0 0`
+  4. `cd <repo> && grep -c '^package com.hermesandroid.relay.net.tailnet$' app/src/main/kotlin/com/hermesandroid/relay/net/tailnet/TailnetNetworkSource.kt app/src/test/kotlin/com/hermesandroid/relay/net/tailnet/TailnetNetworkSourceTest.kt` → `app/src/main/kotlin/com/hermesandroid/relay/net/tailnet/TailnetNetworkSource.kt:1` and `app/src/test/kotlin/com/hermesandroid/relay/net/tailnet/TailnetNetworkSourceTest.kt:1`
+  5. `cd <repo> && python3 scripts/check-android-collection-apis.py` → `Android collection API compatibility check passed (Kotlin sources)` (exit 0)
+  6. `cd <repo> && grep -rnE 'bindProcessToNetwork|setProcessDefaultNetwork|VpnService|setUnderlyingNetworks' app/src/main; echo rc=$?` → no match lines, then `rc=1`
+  7. `cd <repo> && git diff --stat e5989426 -- gradle/libs.versions.toml app/build.gradle.kts` → empty output (no dependency change)
+  8. `cd <repo> && git status --short` → exactly `?? app/src/main/kotlin/com/hermesandroid/relay/net/tailnet/TailnetNetworkSource.kt` and `?? app/src/test/kotlin/com/hermesandroid/relay/net/tailnet/TailnetNetworkSourceTest.kt` before the commit (the first task shows the directory form `?? app/src/main/kotlin/com/hermesandroid/relay/net/` / `?? app/src/test/kotlin/com/hermesandroid/relay/net/` instead — also acceptable); after the commit: `git show --stat --format=%s HEAD` lists exactly these 2 files and the subject below.
   9. NOT verifiable on this host (no JDK): compilation and the unit tests in `app/src/test/kotlin/com/hermesandroid/relay/net/tailnet/TailnetNetworkSourceTest.kt`. They run in cloud CI once slice D registers the test class in `FOCUSED_TESTS`; report them under "what you could NOT verify".
 - **Commit:** `feat(android): add tailnet network source isolation boundary`
 
@@ -1888,7 +1888,7 @@ class TailnetEnforcerTest {
 }
 ```
 - **Steps:**
-  1. `cd /home/smoothmarx/Projects/_worktrees/hermes-relay-tailscale` and confirm the branch: `git rev-parse --abbrev-ref HEAD` → `feat/android-tailscale-always-on`.
+  1. `cd <repo>` and confirm the branch: `git rev-parse --abbrev-ref HEAD` → `feat/android-tailscale-always-on`.
   2. Symbol check: `grep -n 'class DeferredTailnetNetworkSource\|class AndroidTailnetNetworkSource\|class TailnetUnavailableException\|enum class TailnetBlockReason' app/src/main/kotlin/com/hermesandroid/relay/net/tailnet/TailnetNetworkSource.kt` → 4 hits; `grep -n 'internal class FakeTailnetNetworkSource' app/src/test/kotlin/com/hermesandroid/relay/net/tailnet/TailnetNetworkSourceTest.kt` → 1 hit.
   3. Create `app/src/main/kotlin/com/hermesandroid/relay/net/tailnet/TailnetEnforcer.kt` with the first block verbatim (the write tool creates missing directories).
   4. Create `app/src/test/kotlin/com/hermesandroid/relay/net/tailnet/TailnetEnforcerTest.kt` with the second block verbatim.
@@ -1896,14 +1896,14 @@ class TailnetEnforcerTest {
   6. `git add app/src/main/kotlin/com/hermesandroid/relay/net/tailnet/TailnetEnforcer.kt app/src/test/kotlin/com/hermesandroid/relay/net/tailnet/TailnetEnforcerTest.kt`
   7. `git commit -m "feat(android): add tailnet enforcement owner"`
 - **Verify:** (run each command from the worktree; expected output after the arrow)
-  1. `cd /home/smoothmarx/Projects/_worktrees/hermes-relay-tailscale && test -f app/src/main/kotlin/com/hermesandroid/relay/net/tailnet/TailnetEnforcer.kt && test -f app/src/test/kotlin/com/hermesandroid/relay/net/tailnet/TailnetEnforcerTest.kt && echo present` → `present`
-  2. `cd /home/smoothmarx/Projects/_worktrees/hermes-relay-tailscale && sha256sum app/src/main/kotlin/com/hermesandroid/relay/net/tailnet/TailnetEnforcer.kt app/src/test/kotlin/com/hermesandroid/relay/net/tailnet/TailnetEnforcerTest.kt` → `85eebb28e2a93bd995aa092572ad4e329f347af840869a7cd786efed1b4259e4  app/src/main/kotlin/com/hermesandroid/relay/net/tailnet/TailnetEnforcer.kt` and `1c8a1aaf65c728574fe2be1ad9e6a7708fb9c0c3ad97c9e76f89cd7e414d1568  app/src/test/kotlin/com/hermesandroid/relay/net/tailnet/TailnetEnforcerTest.kt` (if a hash differs, re-copy the block exactly; a difference caused ONLY by the final newline is acceptable and must be reported under Deviations)
-  3. `cd /home/smoothmarx/Projects/_worktrees/hermes-relay-tailscale && python3 -c "import pathlib,sys; [print(p, (t:=pathlib.Path(p).read_text()).count('{')-t.count('}'), t.count('(')-t.count(')')) for p in sys.argv[1:]]" app/src/main/kotlin/com/hermesandroid/relay/net/tailnet/TailnetEnforcer.kt app/src/test/kotlin/com/hermesandroid/relay/net/tailnet/TailnetEnforcerTest.kt` → both lines end with `0 0`
-  4. `cd /home/smoothmarx/Projects/_worktrees/hermes-relay-tailscale && grep -c '^package com.hermesandroid.relay.net.tailnet$' app/src/main/kotlin/com/hermesandroid/relay/net/tailnet/TailnetEnforcer.kt app/src/test/kotlin/com/hermesandroid/relay/net/tailnet/TailnetEnforcerTest.kt` → `app/src/main/kotlin/com/hermesandroid/relay/net/tailnet/TailnetEnforcer.kt:1` and `app/src/test/kotlin/com/hermesandroid/relay/net/tailnet/TailnetEnforcerTest.kt:1`
-  5. `cd /home/smoothmarx/Projects/_worktrees/hermes-relay-tailscale && python3 scripts/check-android-collection-apis.py` → `Android collection API compatibility check passed (Kotlin sources)` (exit 0)
-  6. `cd /home/smoothmarx/Projects/_worktrees/hermes-relay-tailscale && grep -rnE 'bindProcessToNetwork|setProcessDefaultNetwork|VpnService|setUnderlyingNetworks' app/src/main; echo rc=$?` → no match lines, then `rc=1`
-  7. `cd /home/smoothmarx/Projects/_worktrees/hermes-relay-tailscale && git diff --stat e5989426 -- gradle/libs.versions.toml app/build.gradle.kts` → empty output (no dependency change)
-  8. `cd /home/smoothmarx/Projects/_worktrees/hermes-relay-tailscale && git status --short` → exactly `?? app/src/main/kotlin/com/hermesandroid/relay/net/tailnet/TailnetEnforcer.kt` and `?? app/src/test/kotlin/com/hermesandroid/relay/net/tailnet/TailnetEnforcerTest.kt` before the commit (the first task shows the directory form `?? app/src/main/kotlin/com/hermesandroid/relay/net/` / `?? app/src/test/kotlin/com/hermesandroid/relay/net/` instead — also acceptable); after the commit: `git show --stat --format=%s HEAD` lists exactly these 2 files and the subject below.
+  1. `cd <repo> && test -f app/src/main/kotlin/com/hermesandroid/relay/net/tailnet/TailnetEnforcer.kt && test -f app/src/test/kotlin/com/hermesandroid/relay/net/tailnet/TailnetEnforcerTest.kt && echo present` → `present`
+  2. `cd <repo> && sha256sum app/src/main/kotlin/com/hermesandroid/relay/net/tailnet/TailnetEnforcer.kt app/src/test/kotlin/com/hermesandroid/relay/net/tailnet/TailnetEnforcerTest.kt` → `85eebb28e2a93bd995aa092572ad4e329f347af840869a7cd786efed1b4259e4  app/src/main/kotlin/com/hermesandroid/relay/net/tailnet/TailnetEnforcer.kt` and `1c8a1aaf65c728574fe2be1ad9e6a7708fb9c0c3ad97c9e76f89cd7e414d1568  app/src/test/kotlin/com/hermesandroid/relay/net/tailnet/TailnetEnforcerTest.kt` (if a hash differs, re-copy the block exactly; a difference caused ONLY by the final newline is acceptable and must be reported under Deviations)
+  3. `cd <repo> && python3 -c "import pathlib,sys; [print(p, (t:=pathlib.Path(p).read_text()).count('{')-t.count('}'), t.count('(')-t.count(')')) for p in sys.argv[1:]]" app/src/main/kotlin/com/hermesandroid/relay/net/tailnet/TailnetEnforcer.kt app/src/test/kotlin/com/hermesandroid/relay/net/tailnet/TailnetEnforcerTest.kt` → both lines end with `0 0`
+  4. `cd <repo> && grep -c '^package com.hermesandroid.relay.net.tailnet$' app/src/main/kotlin/com/hermesandroid/relay/net/tailnet/TailnetEnforcer.kt app/src/test/kotlin/com/hermesandroid/relay/net/tailnet/TailnetEnforcerTest.kt` → `app/src/main/kotlin/com/hermesandroid/relay/net/tailnet/TailnetEnforcer.kt:1` and `app/src/test/kotlin/com/hermesandroid/relay/net/tailnet/TailnetEnforcerTest.kt:1`
+  5. `cd <repo> && python3 scripts/check-android-collection-apis.py` → `Android collection API compatibility check passed (Kotlin sources)` (exit 0)
+  6. `cd <repo> && grep -rnE 'bindProcessToNetwork|setProcessDefaultNetwork|VpnService|setUnderlyingNetworks' app/src/main; echo rc=$?` → no match lines, then `rc=1`
+  7. `cd <repo> && git diff --stat e5989426 -- gradle/libs.versions.toml app/build.gradle.kts` → empty output (no dependency change)
+  8. `cd <repo> && git status --short` → exactly `?? app/src/main/kotlin/com/hermesandroid/relay/net/tailnet/TailnetEnforcer.kt` and `?? app/src/test/kotlin/com/hermesandroid/relay/net/tailnet/TailnetEnforcerTest.kt` before the commit (the first task shows the directory form `?? app/src/main/kotlin/com/hermesandroid/relay/net/` / `?? app/src/test/kotlin/com/hermesandroid/relay/net/` instead — also acceptable); after the commit: `git show --stat --format=%s HEAD` lists exactly these 2 files and the subject below.
   9. NOT verifiable on this host (no JDK): compilation and the unit tests in `app/src/test/kotlin/com/hermesandroid/relay/net/tailnet/TailnetEnforcerTest.kt`. They run in cloud CI once slice D registers the test class in `FOCUSED_TESTS`; report them under "what you could NOT verify".
 - **Commit:** `feat(android): add tailnet enforcement owner`
 
@@ -2094,7 +2094,7 @@ class HermesClientsTest {
 }
 ```
 - **Steps:**
-  1. `cd /home/smoothmarx/Projects/_worktrees/hermes-relay-tailscale` and confirm the branch: `git rev-parse --abbrev-ref HEAD` → `feat/android-tailscale-always-on`.
+  1. `cd <repo>` and confirm the branch: `git rev-parse --abbrev-ref HEAD` → `feat/android-tailscale-always-on`.
   2. Symbol check: `grep -n 'internal class TailnetAddressGuard\|internal class TailnetSocketFactory\|internal class TailnetDns\|fun register(client: OkHttpClient)' app/src/main/kotlin/com/hermesandroid/relay/net/tailnet/TailnetEnforcer.kt` → 4 hits; `grep -n 'testImplementation(libs.okhttp.mockwebserver)' app/build.gradle.kts` → 1 hit.
   3. Create `app/src/main/kotlin/com/hermesandroid/relay/net/tailnet/HermesClients.kt` with the first block verbatim (the write tool creates missing directories).
   4. Create `app/src/test/kotlin/com/hermesandroid/relay/net/tailnet/HermesClientsTest.kt` with the second block verbatim.
@@ -2102,14 +2102,14 @@ class HermesClientsTest {
   6. `git add app/src/main/kotlin/com/hermesandroid/relay/net/tailnet/HermesClients.kt app/src/test/kotlin/com/hermesandroid/relay/net/tailnet/HermesClientsTest.kt`
   7. `git commit -m "feat(android): add HermesClients tailnet client constructor"`
 - **Verify:** (run each command from the worktree; expected output after the arrow)
-  1. `cd /home/smoothmarx/Projects/_worktrees/hermes-relay-tailscale && test -f app/src/main/kotlin/com/hermesandroid/relay/net/tailnet/HermesClients.kt && test -f app/src/test/kotlin/com/hermesandroid/relay/net/tailnet/HermesClientsTest.kt && echo present` → `present`
-  2. `cd /home/smoothmarx/Projects/_worktrees/hermes-relay-tailscale && sha256sum app/src/main/kotlin/com/hermesandroid/relay/net/tailnet/HermesClients.kt app/src/test/kotlin/com/hermesandroid/relay/net/tailnet/HermesClientsTest.kt` → `67af7200dc10a66e07086505b95b852adf6e1ee116a50630b612ca1c0aefdf6d  app/src/main/kotlin/com/hermesandroid/relay/net/tailnet/HermesClients.kt` and `2a1d2930eaf6b3c9a13d4e0431bc55bbe9a7a81611dc6f7432344a2fe7845735  app/src/test/kotlin/com/hermesandroid/relay/net/tailnet/HermesClientsTest.kt` (if a hash differs, re-copy the block exactly; a difference caused ONLY by the final newline is acceptable and must be reported under Deviations)
-  3. `cd /home/smoothmarx/Projects/_worktrees/hermes-relay-tailscale && python3 -c "import pathlib,sys; [print(p, (t:=pathlib.Path(p).read_text()).count('{')-t.count('}'), t.count('(')-t.count(')')) for p in sys.argv[1:]]" app/src/main/kotlin/com/hermesandroid/relay/net/tailnet/HermesClients.kt app/src/test/kotlin/com/hermesandroid/relay/net/tailnet/HermesClientsTest.kt` → both lines end with `0 0`
-  4. `cd /home/smoothmarx/Projects/_worktrees/hermes-relay-tailscale && grep -c '^package com.hermesandroid.relay.net.tailnet$' app/src/main/kotlin/com/hermesandroid/relay/net/tailnet/HermesClients.kt app/src/test/kotlin/com/hermesandroid/relay/net/tailnet/HermesClientsTest.kt` → `app/src/main/kotlin/com/hermesandroid/relay/net/tailnet/HermesClients.kt:1` and `app/src/test/kotlin/com/hermesandroid/relay/net/tailnet/HermesClientsTest.kt:1`
-  5. `cd /home/smoothmarx/Projects/_worktrees/hermes-relay-tailscale && python3 scripts/check-android-collection-apis.py` → `Android collection API compatibility check passed (Kotlin sources)` (exit 0)
-  6. `cd /home/smoothmarx/Projects/_worktrees/hermes-relay-tailscale && grep -rnE 'bindProcessToNetwork|setProcessDefaultNetwork|VpnService|setUnderlyingNetworks' app/src/main; echo rc=$?` → no match lines, then `rc=1`
-  7. `cd /home/smoothmarx/Projects/_worktrees/hermes-relay-tailscale && git diff --stat e5989426 -- gradle/libs.versions.toml app/build.gradle.kts` → empty output (no dependency change)
-  8. `cd /home/smoothmarx/Projects/_worktrees/hermes-relay-tailscale && git status --short` → exactly `?? app/src/main/kotlin/com/hermesandroid/relay/net/tailnet/HermesClients.kt` and `?? app/src/test/kotlin/com/hermesandroid/relay/net/tailnet/HermesClientsTest.kt` before the commit (the first task shows the directory form `?? app/src/main/kotlin/com/hermesandroid/relay/net/` / `?? app/src/test/kotlin/com/hermesandroid/relay/net/` instead — also acceptable); after the commit: `git show --stat --format=%s HEAD` lists exactly these 2 files and the subject below.
+  1. `cd <repo> && test -f app/src/main/kotlin/com/hermesandroid/relay/net/tailnet/HermesClients.kt && test -f app/src/test/kotlin/com/hermesandroid/relay/net/tailnet/HermesClientsTest.kt && echo present` → `present`
+  2. `cd <repo> && sha256sum app/src/main/kotlin/com/hermesandroid/relay/net/tailnet/HermesClients.kt app/src/test/kotlin/com/hermesandroid/relay/net/tailnet/HermesClientsTest.kt` → `67af7200dc10a66e07086505b95b852adf6e1ee116a50630b612ca1c0aefdf6d  app/src/main/kotlin/com/hermesandroid/relay/net/tailnet/HermesClients.kt` and `2a1d2930eaf6b3c9a13d4e0431bc55bbe9a7a81611dc6f7432344a2fe7845735  app/src/test/kotlin/com/hermesandroid/relay/net/tailnet/HermesClientsTest.kt` (if a hash differs, re-copy the block exactly; a difference caused ONLY by the final newline is acceptable and must be reported under Deviations)
+  3. `cd <repo> && python3 -c "import pathlib,sys; [print(p, (t:=pathlib.Path(p).read_text()).count('{')-t.count('}'), t.count('(')-t.count(')')) for p in sys.argv[1:]]" app/src/main/kotlin/com/hermesandroid/relay/net/tailnet/HermesClients.kt app/src/test/kotlin/com/hermesandroid/relay/net/tailnet/HermesClientsTest.kt` → both lines end with `0 0`
+  4. `cd <repo> && grep -c '^package com.hermesandroid.relay.net.tailnet$' app/src/main/kotlin/com/hermesandroid/relay/net/tailnet/HermesClients.kt app/src/test/kotlin/com/hermesandroid/relay/net/tailnet/HermesClientsTest.kt` → `app/src/main/kotlin/com/hermesandroid/relay/net/tailnet/HermesClients.kt:1` and `app/src/test/kotlin/com/hermesandroid/relay/net/tailnet/HermesClientsTest.kt:1`
+  5. `cd <repo> && python3 scripts/check-android-collection-apis.py` → `Android collection API compatibility check passed (Kotlin sources)` (exit 0)
+  6. `cd <repo> && grep -rnE 'bindProcessToNetwork|setProcessDefaultNetwork|VpnService|setUnderlyingNetworks' app/src/main; echo rc=$?` → no match lines, then `rc=1`
+  7. `cd <repo> && git diff --stat e5989426 -- gradle/libs.versions.toml app/build.gradle.kts` → empty output (no dependency change)
+  8. `cd <repo> && git status --short` → exactly `?? app/src/main/kotlin/com/hermesandroid/relay/net/tailnet/HermesClients.kt` and `?? app/src/test/kotlin/com/hermesandroid/relay/net/tailnet/HermesClientsTest.kt` before the commit (the first task shows the directory form `?? app/src/main/kotlin/com/hermesandroid/relay/net/` / `?? app/src/test/kotlin/com/hermesandroid/relay/net/` instead — also acceptable); after the commit: `git show --stat --format=%s HEAD` lists exactly these 2 files and the subject below.
   9. NOT verifiable on this host (no JDK): compilation and the unit tests in `app/src/test/kotlin/com/hermesandroid/relay/net/tailnet/HermesClientsTest.kt`. They run in cloud CI once slice D registers the test class in `FOCUSED_TESTS`; report them under "what you could NOT verify".
 - **Commit:** `feat(android): add HermesClients tailnet client constructor`
 
@@ -2274,8 +2274,8 @@ class HermesClientsTest {
   3. Open `app/src/googlePlay/AndroidManifest.xml`.
   4. Insert the `<queries>` block exactly as in NEW.
 - **Verify:**
-  - `cd /home/smoothmarx/Projects/_worktrees/hermes-relay-tailscale && python3 scripts/check-android-capabilities.py` → exit 0 and includes `Play capability manifest validated (source overlays)`
-  - `cd /home/smoothmarx/Projects/_worktrees/hermes-relay-tailscale && grep -n "com.tailscale.ipn" app/src/main/AndroidManifest.xml app/src/googlePlay/AndroidManifest.xml` → 2 hits
+  - `cd <repo> && python3 scripts/check-android-capabilities.py` → exit 0 and includes `Play capability manifest validated (source overlays)`
+  - `cd <repo> && grep -n "com.tailscale.ipn" app/src/main/AndroidManifest.xml app/src/googlePlay/AndroidManifest.xml` → 2 hits
 - **Commit:** `feat(android): add package visibility for Tailscale intent`
 
 #### Task B2: Gate ConnectionManager route selection + dial path (S1/S3/S9) and bind Relay WSS (T1)
@@ -2522,9 +2522,9 @@ class HermesClientsTest {
   6. Apply resolver input filtering + block-reason updates edit D.
   7. Apply dial guard insertion edit E.
 - **Verify:**
-  - `cd /home/smoothmarx/Projects/_worktrees/hermes-relay-tailscale && grep -n "tailnetPolicyActive" app/src/main/kotlin/com/hermesandroid/relay/network/relay/ConnectionManager.kt` → ≥1 hit
-  - `cd /home/smoothmarx/Projects/_worktrees/hermes-relay-tailscale && grep -n "TailnetRoutePolicy.filter" app/src/main/kotlin/com/hermesandroid/relay/network/relay/ConnectionManager.kt` → ≥1 hit
-  - `cd /home/smoothmarx/Projects/_worktrees/hermes-relay-tailscale && grep -n "HermesClients.build" app/src/main/kotlin/com/hermesandroid/relay/network/relay/ConnectionManager.kt` → ≥1 hit
+  - `cd <repo> && grep -n "tailnetPolicyActive" app/src/main/kotlin/com/hermesandroid/relay/network/relay/ConnectionManager.kt` → ≥1 hit
+  - `cd <repo> && grep -n "TailnetRoutePolicy.filter" app/src/main/kotlin/com/hermesandroid/relay/network/relay/ConnectionManager.kt` → ≥1 hit
+  - `cd <repo> && grep -n "HermesClients.build" app/src/main/kotlin/com/hermesandroid/relay/network/relay/ConnectionManager.kt` → ≥1 hit
 - **Commit:** `feat(android): gate route selection and dial path under tailnet policy`
 
 #### Task B3: Bind core Hermes-host OkHttp clients and wire ConnectionManager tailnet hooks
@@ -2654,8 +2654,8 @@ class HermesClientsTest {
   2. Add imports.
   3. Apply edits A–D exactly.
 - **Verify:**
-  - `cd /home/smoothmarx/Projects/_worktrees/hermes-relay-tailscale && grep -n "HermesClients.build" app/src/main/kotlin/com/hermesandroid/relay/viewmodel/ConnectionViewModel.kt` → ≥2 hits (probe + relayOkHttp)
-  - `cd /home/smoothmarx/Projects/_worktrees/hermes-relay-tailscale && grep -n "tailnetPolicyActive" app/src/main/kotlin/com/hermesandroid/relay/viewmodel/ConnectionViewModel.kt` → ≥1 hit (ConnectionManager ctor)
+  - `cd <repo> && grep -n "HermesClients.build" app/src/main/kotlin/com/hermesandroid/relay/viewmodel/ConnectionViewModel.kt` → ≥2 hits (probe + relayOkHttp)
+  - `cd <repo> && grep -n "tailnetPolicyActive" app/src/main/kotlin/com/hermesandroid/relay/viewmodel/ConnectionViewModel.kt` → ≥1 hit (ConnectionManager ctor)
 - **Commit:** `feat(android): bind core okhttp clients and wire tailnet hooks`
 
 #### Task B4: Prevent saved-URL downgrades for HTTP surfaces while tailnet policy is ON (S4 + S12 writer gate)
@@ -2936,8 +2936,8 @@ internal suspend fun persistAuthenticatedDashboardOriginWithRollback(
   4. Apply effective-flow edits B1–B3.
   5. Apply persistence gate edit C.
 - **Verify:**
-  - `cd /home/smoothmarx/Projects/_worktrees/hermes-relay-tailscale && grep -n "tailnetOnly" app/src/main/kotlin/com/hermesandroid/relay/viewmodel/ConnectionViewModel.kt` → ≥5 hits
-  - `cd /home/smoothmarx/Projects/_worktrees/hermes-relay-tailscale && grep -n "persistAuthenticatedDashboardOriginWithRollback" -n app/src/main/kotlin/com/hermesandroid/relay/viewmodel/ConnectionViewModel.kt` → ≥1 hit
+  - `cd <repo> && grep -n "tailnetOnly" app/src/main/kotlin/com/hermesandroid/relay/viewmodel/ConnectionViewModel.kt` → ≥5 hits
+  - `cd <repo> && grep -n "persistAuthenticatedDashboardOriginWithRollback" -n app/src/main/kotlin/com/hermesandroid/relay/viewmodel/ConnectionViewModel.kt` → ≥1 hit
 - **Commit:** `feat(android): blank out non-tailnet effective urls under tailnet policy`
 
 #### Task B5: Wire TailnetEnforcer policy activation + block non-eligible manual route writes (S10)
@@ -3082,8 +3082,8 @@ internal suspend fun persistAuthenticatedDashboardOriginWithRollback(
   3. Add the `_tailnetRouteBlockedEvents` flow in B.
   4. Apply gating edits C.
 - **Verify:**
-  - `cd /home/smoothmarx/Projects/_worktrees/hermes-relay-tailscale && grep -n "tailnetRouteBlockedEvents" app/src/main/kotlin/com/hermesandroid/relay/viewmodel/ConnectionViewModel.kt` → ≥1 hit
-  - `cd /home/smoothmarx/Projects/_worktrees/hermes-relay-tailscale && grep -n "setPolicy" app/src/main/kotlin/com/hermesandroid/relay/viewmodel/ConnectionViewModel.kt` → ≥3 hits
+  - `cd <repo> && grep -n "tailnetRouteBlockedEvents" app/src/main/kotlin/com/hermesandroid/relay/viewmodel/ConnectionViewModel.kt` → ≥1 hit
+  - `cd <repo> && grep -n "setPolicy" app/src/main/kotlin/com/hermesandroid/relay/viewmodel/ConnectionViewModel.kt` → ≥3 hits
 - **Commit:** `feat(android): wire tailnet policy activation and gate route preference writers`
 
 #### Task B6: Bind Dashboard REST + native PKCE base clients (T9/T13) via HermesClients
@@ -3141,7 +3141,7 @@ internal suspend fun persistAuthenticatedDashboardOriginWithRollback(
   1. Apply edit A in `DashboardApiClient.kt`.
   2. Apply edit B in `UpstreamTransportController.kt`.
 - **Verify:**
-  - `cd /home/smoothmarx/Projects/_worktrees/hermes-relay-tailscale && grep -n "HermesClients.build" app/src/main/kotlin/com/hermesandroid/relay/network/upstream/DashboardApiClient.kt app/src/main/kotlin/com/hermesandroid/relay/viewmodel/connection/UpstreamTransportController.kt` → ≥2 hits
+  - `cd <repo> && grep -n "HermesClients.build" app/src/main/kotlin/com/hermesandroid/relay/network/upstream/DashboardApiClient.kt app/src/main/kotlin/com/hermesandroid/relay/viewmodel/connection/UpstreamTransportController.kt` → ≥2 hits
 - **Commit:** `feat(android): bind dashboard clients via hermesclients`
 
 #### Task B7: Bind HermesApiClient + GatewayChatClient (T7/T11) via HermesClients
@@ -3208,7 +3208,7 @@ internal suspend fun persistAuthenticatedDashboardOriginWithRollback(
   1. Apply edit A in `HermesApiClient.kt`.
   2. Apply edit B in `GatewayChatClient.kt`.
 - **Verify:**
-  - `cd /home/smoothmarx/Projects/_worktrees/hermes-relay-tailscale && grep -n "HermesClients.build" app/src/main/kotlin/com/hermesandroid/relay/network/upstream/HermesApiClient.kt app/src/main/kotlin/com/hermesandroid/relay/network/upstream/GatewayChatClient.kt` → ≥2 hits
+  - `cd <repo> && grep -n "HermesClients.build" app/src/main/kotlin/com/hermesandroid/relay/network/upstream/HermesApiClient.kt app/src/main/kotlin/com/hermesandroid/relay/network/upstream/GatewayChatClient.kt` → ≥2 hits
 - **Commit:** `feat(android): bind api and gateway clients via hermesclients`
 
 #### Task B8: Bind RelayVoiceClient + NativeDashboardAuth client (T15a/T13) via HermesClients
@@ -3287,7 +3287,7 @@ class NativeDashboardAuthClient(
   1. Apply edit A in `HermesRuntimeBinder.kt`.
   2. Apply edit B in `NativeDashboardAuth.kt`.
 - **Verify:**
-  - `cd /home/smoothmarx/Projects/_worktrees/hermes-relay-tailscale && grep -n "HermesClients.build" app/src/main/kotlin/com/hermesandroid/relay/runtime/HermesRuntimeBinder.kt app/src/main/kotlin/com/hermesandroid/relay/network/upstream/NativeDashboardAuth.kt` → ≥2 hits
+  - `cd <repo> && grep -n "HermesClients.build" app/src/main/kotlin/com/hermesandroid/relay/runtime/HermesRuntimeBinder.kt app/src/main/kotlin/com/hermesandroid/relay/network/upstream/NativeDashboardAuth.kt` → ≥2 hits
 - **Commit:** `feat(android): bind voice and native auth clients via hermesclients`
 
 #### Task B9: Split MediaSaver remote fetches by authority (T23) and bind the Hermes-host path
@@ -3377,7 +3377,7 @@ class NativeDashboardAuthClient(
   2. Apply the httpClient replacement edit.
   3. Apply the fetchRemoteBytes client-selection edit.
 - **Verify:**
-  - `cd /home/smoothmarx/Projects/_worktrees/hermes-relay-tailscale && grep -n "setHermesRouteAuthoritiesProvider" app/src/main/kotlin/com/hermesandroid/relay/util/MediaSaver.kt` → ≥1 hit
+  - `cd <repo> && grep -n "setHermesRouteAuthoritiesProvider" app/src/main/kotlin/com/hermesandroid/relay/util/MediaSaver.kt` → ≥1 hit
 - **Commit:** `feat(android): split mediasaver fetches by authority under tailnet policy`
 
 #### Task B10: Split Coil image loading by authority (T24) and bind the Hermes-host path
@@ -3469,8 +3469,8 @@ class NativeDashboardAuthClient(
   3. Add HermesAwareCallFactory per edit B.
   4. Add TailnetEnforcer initialization per edit C.
 - **Verify:**
-  - `cd /home/smoothmarx/Projects/_worktrees/hermes-relay-tailscale && grep -n "HermesAwareCallFactory" app/src/main/kotlin/com/hermesandroid/relay/HermesRelayApp.kt` → ≥1 hit
-  - `cd /home/smoothmarx/Projects/_worktrees/hermes-relay-tailscale && grep -n "TailnetEnforcer.initialize" app/src/main/kotlin/com/hermesandroid/relay/HermesRelayApp.kt` → ≥1 hit
+  - `cd <repo> && grep -n "HermesAwareCallFactory" app/src/main/kotlin/com/hermesandroid/relay/HermesRelayApp.kt` → ≥1 hit
+  - `cd <repo> && grep -n "TailnetEnforcer.initialize" app/src/main/kotlin/com/hermesandroid/relay/HermesRelayApp.kt` → ≥1 hit
 - **Commit:** `feat(android): split coil call factory by authority and init tailnet enforcer`
 
 #### Task B11: URL-gate WebView + Custom Tabs entry points (T25/T26)
@@ -3531,7 +3531,7 @@ internal fun launchNativeDashboardAuthorization(
   1. Apply edit A in `DashboardSignInScreen.kt`.
   2. Apply edit B in `NativeDashboardBrowserLauncher.kt`.
 - **Verify:**
-  - `cd /home/smoothmarx/Projects/_worktrees/hermes-relay-tailscale && grep -n "checkUrl" app/src/main/kotlin/com/hermesandroid/relay/ui/screens/DashboardSignInScreen.kt app/src/main/kotlin/com/hermesandroid/relay/ui/screens/NativeDashboardBrowserLauncher.kt` → ≥2 hits
+  - `cd <repo> && grep -n "checkUrl" app/src/main/kotlin/com/hermesandroid/relay/ui/screens/DashboardSignInScreen.kt app/src/main/kotlin/com/hermesandroid/relay/ui/screens/NativeDashboardBrowserLauncher.kt` → ≥2 hits
 - **Commit:** `feat(android): url-gate dashboard webview and custom tabs under tailnet policy`
 
 ## Slice B open questions
@@ -3552,7 +3552,7 @@ internal fun launchNativeDashboardAuthorization(
 
 ## Slice C — UI and i18n
 
-Worktree: `/home/smoothmarx/Projects/_worktrees/hermes-relay-tailscale` (branch `feat/android-tailscale-always-on`, base `e5989426`).
+Worktree: `<repo>` (branch `feat/android-tailscale-always-on`, base `e5989426`).
 Every OLD block below was checked against the base commit to occur EXACTLY ONCE in its file. Every task was also applied to a throwaway copy of the base tree (`git archive e5989426`): the locale gate passed and the six new `source_sha256` values were computed from that result (Task C8).
 
 Where it sits (owner question): **Settings → Always connect via Tailscale**, the row directly UNDER **Settings → Gateways** (`SettingsScreen.kt:572-578`), opening a new subpage `TailscaleSettingsScreen` (route `settings/tailscale`). The subpage holds the ONLY switch. **Connection detail → Routes tab** gets a read-only status row (no switch) that opens the same subpage.
@@ -3627,7 +3627,7 @@ Where it sits (owner question): **Settings → Always connect via Tailscale**, t
   5. Leave `docs/localization-status.json` alone here. Task C8 refreshes the hashes once all 7 catalogs are done.
 - **Verify:**
   ```bash
-  cd /home/smoothmarx/Projects/_worktrees/hermes-relay-tailscale
+  cd <repo>
   grep -c 'name="settings_tailscale_\|name="tailnet_' app/src/main/res/values/strings.xml      # expect: 35
   python3 -c "import xml.etree.ElementTree as E;E.parse('app/src/main/res/values/strings.xml');print('xml ok')"   # expect: xml ok
   python3 - <<'PY'
@@ -3699,7 +3699,7 @@ Where it sits (owner question): **Settings → Always connect via Tailscale**, t
   4. Save as UTF-8 without BOM, keeping LF line endings. Change no other line.
 - **Verify:**
   ```bash
-  cd /home/smoothmarx/Projects/_worktrees/hermes-relay-tailscale
+  cd <repo>
   grep -c 'name="settings_tailscale_\|name="tailnet_' app/src/main/res/values-de/strings.xml      # expect: 35
   python3 -c "import xml.etree.ElementTree as E;E.parse('app/src/main/res/values-de/strings.xml');print('xml ok')"   # expect: xml ok
   python3 - <<'PY'
@@ -3771,7 +3771,7 @@ Where it sits (owner question): **Settings → Always connect via Tailscale**, t
   4. Save as UTF-8 without BOM, keeping LF line endings. Change no other line.
 - **Verify:**
   ```bash
-  cd /home/smoothmarx/Projects/_worktrees/hermes-relay-tailscale
+  cd <repo>
   grep -c 'name="settings_tailscale_\|name="tailnet_' app/src/main/res/values-es/strings.xml      # expect: 35
   python3 -c "import xml.etree.ElementTree as E;E.parse('app/src/main/res/values-es/strings.xml');print('xml ok')"   # expect: xml ok
   python3 - <<'PY'
@@ -3843,7 +3843,7 @@ Where it sits (owner question): **Settings → Always connect via Tailscale**, t
   4. Save as UTF-8 without BOM, keeping LF line endings. Change no other line.
 - **Verify:**
   ```bash
-  cd /home/smoothmarx/Projects/_worktrees/hermes-relay-tailscale
+  cd <repo>
   grep -c 'name="settings_tailscale_\|name="tailnet_' app/src/main/res/values-ja/strings.xml      # expect: 35
   python3 -c "import xml.etree.ElementTree as E;E.parse('app/src/main/res/values-ja/strings.xml');print('xml ok')"   # expect: xml ok
   python3 - <<'PY'
@@ -3915,7 +3915,7 @@ Where it sits (owner question): **Settings → Always connect via Tailscale**, t
   4. Save as UTF-8 without BOM, keeping LF line endings. Change no other line.
 - **Verify:**
   ```bash
-  cd /home/smoothmarx/Projects/_worktrees/hermes-relay-tailscale
+  cd <repo>
   grep -c 'name="settings_tailscale_\|name="tailnet_' app/src/main/res/values-ru/strings.xml      # expect: 35
   python3 -c "import xml.etree.ElementTree as E;E.parse('app/src/main/res/values-ru/strings.xml');print('xml ok')"   # expect: xml ok
   python3 - <<'PY'
@@ -3987,7 +3987,7 @@ Where it sits (owner question): **Settings → Always connect via Tailscale**, t
   4. Save as UTF-8 without BOM, keeping LF line endings. Change no other line.
 - **Verify:**
   ```bash
-  cd /home/smoothmarx/Projects/_worktrees/hermes-relay-tailscale
+  cd <repo>
   grep -c 'name="settings_tailscale_\|name="tailnet_' app/src/main/res/values-b+zh+Hans/strings.xml      # expect: 35
   python3 -c "import xml.etree.ElementTree as E;E.parse('app/src/main/res/values-b+zh+Hans/strings.xml');print('xml ok')"   # expect: xml ok
   python3 - <<'PY'
@@ -4059,7 +4059,7 @@ Where it sits (owner question): **Settings → Always connect via Tailscale**, t
   4. Save as UTF-8 without BOM, keeping LF line endings. Change no other line.
 - **Verify:**
   ```bash
-  cd /home/smoothmarx/Projects/_worktrees/hermes-relay-tailscale
+  cd <repo>
   grep -c 'name="settings_tailscale_\|name="tailnet_' app/src/main/res/values-b+pt+BR/strings.xml      # expect: 35
   python3 -c "import xml.etree.ElementTree as E;E.parse('app/src/main/res/values-b+pt+BR/strings.xml');print('xml ok')"   # expect: xml ok
   python3 - <<'PY'
@@ -4103,7 +4103,7 @@ Where it sits (owner question): **Settings → Always connect via Tailscale**, t
   3. Check that it printed `new main hash 7a98fd2c69bc782ca0762be126bf1dad5515558093bf99c69de744fb754fc023`. If it printed a different hash, keep it and note the deviation.
 - **Verify:**
   ```bash
-  cd /home/smoothmarx/Projects/_worktrees/hermes-relay-tailscale
+  cd <repo>
   grep -c '7a98fd2c69bc782ca0762be126bf1dad5515558093bf99c69de744fb754fc023' docs/localization-status.json   # expect: 6
   grep -c '8588c42385e783a2ddf888b515ca6b97a5df44a30d3619c048d3d03d91dd5278' docs/localization-status.json   # expect: 0
   python3 scripts/check-android-locales.py; echo rc=$?
@@ -4514,7 +4514,7 @@ fun TailscaleAlwaysConnectStatusRow(
   4. Do not create `TailnetRemediation.kt` or any second file for the remediation mapping. MERGE's single card file owns it (`remediationActions()`, `blockedBodyRes()`, `openTailscaleApp`, `openTailscaleInstallPage`).
 - **Verify:**
   ```bash
-  cd /home/smoothmarx/Projects/_worktrees/hermes-relay-tailscale
+  cd <repo>
   F=app/src/main/kotlin/com/hermesandroid/relay/ui/components/TailscaleAlwaysConnectCard.kt
   grep -c 'sealed interface TailscaleAlwaysConnectUiState\|enum class TailscaleAlwaysConnectStatus\|fun TailscaleAlwaysConnectCard(\|fun TailscaleAlwaysConnectStatusRow(\|const val TAILSCALE_SETTINGS_ROUTE' $F   # expect: 5
   grep -c '@Preview' $F                                   # expect: 0
@@ -4565,7 +4565,7 @@ fun TailscaleAlwaysConnectStatusRow(
   3. Change nothing else.
 - **Verify:**
   ```bash
-  cd /home/smoothmarx/Projects/_worktrees/hermes-relay-tailscale
+  cd <repo>
   grep -n 'initialRole' app/src/main/kotlin/com/hermesandroid/relay/ui/components/EndpointsCard.kt   # expect: 2 hits (parameter + "null -> initialRole")
   grep -c 'null -> "lan"' app/src/main/kotlin/com/hermesandroid/relay/ui/components/EndpointsCard.kt   # expect: 0
   git diff --stat HEAD~1   # expect: 1 file changed, 3 insertions(+), 1 deletion(-)
@@ -4822,7 +4822,7 @@ fun TailscaleSettingsScreen(
   3. Create the file with the exact content above. No `@Preview`.
 - **Verify:**
   ```bash
-  cd /home/smoothmarx/Projects/_worktrees/hermes-relay-tailscale
+  cd <repo>
   F=app/src/main/kotlin/com/hermesandroid/relay/ui/screens/TailscaleSettingsScreen.kt
   grep -c 'fun TailscaleSettingsScreen(' $F            # expect: 1
   grep -c 'TailscaleAlwaysConnectCard(' $F             # expect: 1
@@ -4891,7 +4891,7 @@ import androidx.compose.material.icons.filled.VpnKey
   3. Apply Edit 3 (import).
 - **Verify:**
   ```bash
-  cd /home/smoothmarx/Projects/_worktrees/hermes-relay-tailscale
+  cd <repo>
   F=app/src/main/kotlin/com/hermesandroid/relay/ui/screens/SettingsScreen.kt
   grep -n 'onNavigateToTailscaleSettings' $F      # expect: 2 hits (parameter + onClick)
   grep -n 'settings_tailscale_always_connect_title\|settings_tailscale_desc' $F   # expect: 2 hits
@@ -4972,7 +4972,7 @@ import com.hermesandroid.relay.ui.screens.AdvancedSettingsScreen
   2. Change nothing else in RelayApp.kt.
 - **Verify:**
   ```bash
-  cd /home/smoothmarx/Projects/_worktrees/hermes-relay-tailscale
+  cd <repo>
   F=app/src/main/kotlin/com/hermesandroid/relay/ui/RelayApp.kt
   grep -n 'Screen.TailscaleSettings' $F          # expect: 2 hits (navigate + composable)
   grep -n 'data object TailscaleSettings' $F      # expect: 1 hit
@@ -5053,7 +5053,7 @@ import com.hermesandroid.relay.util.classifyError
   2. Apply Edits 1–4. Do NOT add a `Switch` or any toggle to this file.
 - **Verify:**
   ```bash
-  cd /home/smoothmarx/Projects/_worktrees/hermes-relay-tailscale
+  cd <repo>
   F=app/src/main/kotlin/com/hermesandroid/relay/ui/components/ActiveConnectionSections.kt
   grep -n 'TailscaleAlwaysConnectStatusRow(' $F          # expect: 1 hit
   grep -n 'tailscaleAlwaysConnectUiState' $F             # expect: 1 hit
@@ -5227,7 +5227,7 @@ import com.hermesandroid.relay.util.classifyError
   2. Do not touch `RouteEditorDialog`'s role chips. LAN and public routes can still be added; they are stored and stay inert while ON (D1 S10).
 - **Verify:**
   ```bash
-  cd /home/smoothmarx/Projects/_worktrees/hermes-relay-tailscale
+  cd <repo>
   F=app/src/main/kotlin/com/hermesandroid/relay/ui/components/EndpointsCard.kt
   grep -c 'blockedByTailnetPolicy' $F           # expect: 5 (param, call-site arg, chip, Use-now guard, Prefer guard)
   grep -c 'removesLastTailnetRoute' $F          # expect: 3 (param, call-site arg, dialog)
@@ -5272,7 +5272,7 @@ import com.hermesandroid.relay.network.shared.EndpointSurface
   2. Apply Edits 1–2.
 - **Verify:**
   ```bash
-  cd /home/smoothmarx/Projects/_worktrees/hermes-relay-tailscale
+  cd <repo>
   F=app/src/main/kotlin/com/hermesandroid/relay/ui/components/ActiveConnectionSections.kt
   grep -n 'tailnetOnly = tailscaleAlwaysConnectState is TailscaleAlwaysConnectUiState.On' $F   # expect: 1 hit
   grep -n 'TailnetRoutePolicy.isEligible(candidate)' $F       # expect: 1 hit
@@ -5326,7 +5326,7 @@ import com.hermesandroid.relay.network.upstream.GatewayAvailability
   3. Apply Edits 1–2.
 - **Verify:**
   ```bash
-  cd /home/smoothmarx/Projects/_worktrees/hermes-relay-tailscale
+  cd <repo>
   F=app/src/main/kotlin/com/hermesandroid/relay/ui/screens/ConnectionsSettingsScreen.kt
   grep -n 'if (connection.alwaysViaTailscale)' $F      # expect: 1 hit
   grep -c 'TailnetRoutePolicy.isEligible(it)' $F        # expect: 2
