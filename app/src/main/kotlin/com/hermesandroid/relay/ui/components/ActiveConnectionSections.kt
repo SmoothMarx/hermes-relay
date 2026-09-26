@@ -87,8 +87,10 @@ import com.hermesandroid.relay.data.primaryRouteUrl
 import com.hermesandroid.relay.network.relay.ConnectionState
 import com.hermesandroid.relay.network.relay.RelayUrlDeriver
 import com.hermesandroid.relay.network.upstream.GatewayAvailability
+import com.hermesandroid.relay.util.NavRouteRequest
 import com.hermesandroid.relay.util.classifyError
 import com.hermesandroid.relay.viewmodel.ConnectionViewModel
+import com.hermesandroid.relay.network.shared.TailnetRoutePolicy
 import com.hermesandroid.relay.network.shared.EndpointSurface
 import com.hermesandroid.relay.viewmodel.RelayUiState
 import com.hermesandroid.relay.viewmodel.StandardVoiceAvailability
@@ -1525,6 +1527,8 @@ fun ActiveCardRoutesSection(
     connection: Connection,
     liveState: RelayUiState?,
     onEditDashboard: () -> Unit,
+    /** Opens Settings -> Always connect via Tailscale (the only place with the switch). */
+    onOpenTailscaleSettings: () -> Unit = { NavRouteRequest.tryRequest(TAILSCALE_SETTINGS_ROUTE) },
 ) {
     val context = LocalContext.current
     val endpoints: List<EndpointCandidate> by connectionViewModel.observeDeviceEndpoints()
@@ -1541,6 +1545,7 @@ fun ActiveCardRoutesSection(
     val relayRowState by connectionViewModel.relayRowState.collectAsState()
     val relayUrl by connectionViewModel.effectiveRelayUrl.collectAsState()
     val gatewayAvailabilityForRoutes by connectionViewModel.gatewayAvailability.collectAsState()
+    val tailscaleAlwaysConnectState by connectionViewModel.tailscaleAlwaysConnectUiState.collectAsState()
 
     var preferredRole by remember(connection.id) {
         mutableStateOf(connectionViewModel.getPreferredEndpointRole())
@@ -1802,6 +1807,11 @@ fun ActiveCardRoutesSection(
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
 
+        TailscaleAlwaysConnectStatusRow(
+            uiState = tailscaleAlwaysConnectState,
+            onClick = onOpenTailscaleSettings,
+        )
+
         if (showTailscaleUnavailableHint) {
             Surface(
                 color = MaterialTheme.colorScheme.tertiaryContainer,
@@ -2023,6 +2033,8 @@ fun ActiveCardRoutesSection(
                     routeEditorOpen = true
                 },
                 onRemoveRoute = { candidate -> connectionViewModel.removeExtraRoute(candidate) },
+                tailnetOnly = tailscaleAlwaysConnectState is TailscaleAlwaysConnectUiState.On,
+                isTailnetEligible = { candidate -> TailnetRoutePolicy.isEligible(candidate) },
             )
         }
 
