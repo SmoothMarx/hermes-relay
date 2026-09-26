@@ -24,6 +24,7 @@ import com.hermesandroid.relay.network.shared.EndpointResolver
 import com.hermesandroid.relay.network.shared.EndpointSurface
 import com.hermesandroid.relay.network.shared.fullJitterDelayMs
 import com.hermesandroid.relay.network.shared.HermesClients
+import com.hermesandroid.relay.network.shared.TailnetAddresses
 import com.hermesandroid.relay.network.shared.TailnetBlockReason
 import com.hermesandroid.relay.network.shared.TailnetRoutePolicy
 import com.hermesandroid.relay.network.shutdownOffMainThread
@@ -884,8 +885,10 @@ class ConnectionManager(
             shouldReconnect &&
             reconnectGate()
         ) {
-            Log.i(TAG, "probeAndReconnect: current route is stale — reconnecting $current")
-            doConnect(current)
+            if (!skipStaleNonTailnetRoute(current)) {
+                Log.i(TAG, "probeAndReconnect: current route is stale — reconnecting $current")
+                doConnect(current)
+            }
         }
         return resolved
     }
@@ -1098,8 +1101,10 @@ class ConnectionManager(
             } else if (_connectionState.value == ConnectionState.Disconnected &&
                 reconnectGate()
             ) {
-                Log.i(TAG, "network change: same winner is disconnected — reconnecting $current")
-                doConnect(current)
+                if (!skipStaleNonTailnetRoute(current)) {
+                    Log.i(TAG, "network change: same winner is disconnected — reconnecting $current")
+                    doConnect(current)
+                }
             }
         }
     }
@@ -1527,6 +1532,33 @@ class ConnectionManager(
             }
     }
 
+    /**
+     * Fail-closed guard for the retry/reconnect dial paths. Under the mode, [url] is
+     * either a tailnet route or a route that was live BEFORE the mode was switched on
+     * (a stored URL keeps its last value). Re-dialling that stale route would be
+     * refused by the bound client anyway - the address guard still fails closed - but
+     * failing here stops the retry loop from hammering a route the user has excluded
+     * and publishes WHY instead of a bare "reconnecting".
+     */
+    private fun skipStaleNonTailnetRoute(url: String?): Boolean {
+        if (!tailnetPolicyActive()) return false
+        val target = url ?: return false
+        if (TailnetAddresses.isTailnetUrl(target)) return false
+        Log.i(TAG, "reconnect: skipping stored non-Tailscale route while the mode is on")
+        _tailnetResolveBlock.value = TailnetBlockReason.PolicyNoEligibleRoute
+        _connectionState.value = ConnectionState.Disconnected
+        DiagnosticsLog.record(
+            category = DiagnosticCategory.Relay,
+            severity = DiagnosticSeverity.Error,
+            title = context?.getString(R.string.tailnet_diag_blocked) ?: "Blocked: not a Tailscale route",
+            detail = TailnetBlockReason.PolicyNoEligibleRoute.name,
+            operation = "Reconnect relay",
+            configuredUrl = target,
+            requestUrl = target,
+        )
+        return true
+    }
+
     private fun scheduleReconnect() {
         if (!shouldReconnect) return
         // Defense-in-depth: if auth state says we shouldn't be reconnecting
@@ -1549,6 +1581,7 @@ class ConnectionManager(
         }
 
         val url = serverUrl ?: return
+        if (skipStaleNonTailnetRoute(url)) return
         val reconnectAttempt = reconnectState.nextReconnectAttempt()
         // Keep the socket lifecycle visibly in-flight for the whole backoff
         // window. Callers such as reconnectIfStale() treat Disconnected as an
