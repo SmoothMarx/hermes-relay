@@ -155,6 +155,7 @@ import com.hermesandroid.relay.util.HumanError
 import kotlinx.coroutines.delay
 import com.hermesandroid.relay.ui.onboarding.OnboardingScreen
 import com.hermesandroid.relay.ui.screens.AboutScreen
+import com.hermesandroid.relay.ui.components.TAILSCALE_SETTINGS_ROUTE
 import com.hermesandroid.relay.ui.screens.AdvancedSettingsScreen
 import com.hermesandroid.relay.ui.screens.AnalyticsScreen
 import com.hermesandroid.relay.ui.screens.AppearanceSettingsScreen
@@ -191,6 +192,7 @@ import com.hermesandroid.relay.ui.screens.PluginPageScreen
 import com.hermesandroid.relay.ui.screens.GitStateScreen
 import com.hermesandroid.relay.viewmodel.GitStateViewModel
 import com.hermesandroid.relay.viewmodel.GitStateUiState
+import com.hermesandroid.relay.ui.screens.TailscaleSettingsScreen
 import com.hermesandroid.relay.ui.screens.TerminalScreen
 import com.hermesandroid.relay.ui.screens.NotificationCompanionSettingsScreen
 import com.hermesandroid.relay.ui.screens.ProactiveSettingsScreen
@@ -204,6 +206,7 @@ import com.hermesandroid.relay.diagnostics.DiagnosticCategory
 import com.hermesandroid.relay.diagnostics.DiagnosticSeverity
 import com.hermesandroid.relay.diagnostics.DiagnosticsLog
 import com.hermesandroid.relay.network.relay.RelayProfileInspectorClient
+import com.hermesandroid.relay.network.shared.HermesClients
 import com.hermesandroid.relay.network.upstream.GatewayAvailability
 import com.hermesandroid.relay.viewmodel.ChatRuntimeStatus
 import com.hermesandroid.relay.viewmodel.ChatTransportPath
@@ -622,6 +625,7 @@ sealed class Screen(
     // above for the surviving route.)
     data object ChatSettings : Screen("settings/chat", "Chat", Icons.Filled.Settings)
     data object AdvancedSettings : Screen("settings/advanced", "Advanced", Icons.Filled.Settings)
+    data object TailscaleSettings : Screen(TAILSCALE_SETTINGS_ROUTE, "Tailscale", Icons.Filled.Settings)
     data object SupervisedAppearanceSettings : Screen(
         "settings/supervised/appearance",
         "Appearance",
@@ -917,10 +921,11 @@ fun RelayApp() {
     val relayVoiceReady by connectionViewModel.relayVoiceReady.collectAsState()
 
     val profileInspectorHttpClient = remember {
-        okhttp3.OkHttpClient.Builder()
-            .readTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
-            .connectTimeout(15, java.util.concurrent.TimeUnit.SECONDS)
-            .build()
+        HermesClients.build(
+            okhttp3.OkHttpClient.Builder()
+                .readTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
+                .connectTimeout(15, java.util.concurrent.TimeUnit.SECONDS),
+        )
     }
     // === PHASE3-status: sync granular phone-status settings to chat ===
     val appContextEnabled by connectionViewModel.appContextEnabled.collectAsState()
@@ -2925,6 +2930,9 @@ fun RelayApp() {
                         onNavigateToAdvancedSettings = {
                             navController.navigate(Screen.AdvancedSettings.route)
                         },
+                        onNavigateToTailscaleSettings = {
+                            navController.navigate(Screen.TailscaleSettings.route)
+                        },
                         onNavigateToSupervisedAppearance = {
                             navController.navigate(Screen.SupervisedAppearanceSettings.route)
                         },
@@ -3022,6 +3030,21 @@ fun RelayApp() {
                             onNavigateToSupervisedControls = {
                                 navController.navigate(Screen.SupervisedControls.route)
                             },
+                            onBack = { navController.popBackStack() },
+                        )
+                    }
+                }
+                composable(Screen.TailscaleSettings.route) {
+                    if (!parentAccessForCurrentRoute && supervisedPolicy.enabled) {
+                        LaunchedEffect(Unit) {
+                            navController.navigate(Screen.Chat.route(openAgentSheet = false)) {
+                                popUpTo(navController.graph.findStartDestination().id) { inclusive = false }
+                                launchSingleTop = true
+                            }
+                        }
+                    } else {
+                        TailscaleSettingsScreen(
+                            connectionViewModel = connectionViewModel,
                             onBack = { navController.popBackStack() },
                         )
                     }
