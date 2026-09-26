@@ -1873,6 +1873,18 @@ fun RelayApp() {
             }
         }
 
+        // One-shot refusals from the always-on Tailscale route policy. The
+        // Routes card also surfaces these, but a tap can land on any surface
+        // that lists routes, so the app-root collector is what guarantees the
+        // user learns why selecting that route did nothing. Emitted value is
+        // the string resource, resolved here rather than pre-read, because
+        // which resource arrives is only known at event time.
+        LaunchedEffect(connectionViewModel) {
+            connectionViewModel.tailnetRouteBlockedEvents.collect { resId ->
+                UiMessageBus.warning(applicationContext.getString(resId))
+            }
+        }
+
         // === v0.4.1 polish: global unattended-access banner ===
         // Rendered at the top of the scaffold on every tab when BOTH the
         // master toggle is ON and unattended access is ON. The per-screen
