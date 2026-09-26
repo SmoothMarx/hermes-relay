@@ -45,6 +45,13 @@ FOCUSED_TESTS = (
     "com.hermesandroid.relay.ui.components.MarkdownStreamingParserTest",
     "com.hermesandroid.relay.ui.screens.ChangelogScreenTest",
     "com.hermesandroid.relay.ui.screens.ChatUnreadStateTest",
+    "com.hermesandroid.relay.network.shared.TailnetAddressesTest",
+    "com.hermesandroid.relay.network.shared.TailnetRoutePolicyTest",
+    "com.hermesandroid.relay.network.shared.TailnetNetworkClassifierTest",
+    "com.hermesandroid.relay.network.shared.TailnetNetworkSourceTest",
+    "com.hermesandroid.relay.network.shared.TailnetEnforcerTest",
+    "com.hermesandroid.relay.network.shared.HermesClientsTest",
+    "com.hermesandroid.relay.data.ConnectionDashboardFieldsTest",
 )
 RELEASE_PREP_TESTS = (
     "com.hermesandroid.relay.screenshots.ChangelogHistoryScreenshotTest",
@@ -55,6 +62,7 @@ REPOSITORY_CHECKS = (
     "check-android-locales.py",
     "check-user-docs-locales.py",
     "check-android-collection-apis.py",
+    "check-android-hermes-transports.py",
     "check-android-release-notes.py",
     "check-version-tracks.py",
 )
