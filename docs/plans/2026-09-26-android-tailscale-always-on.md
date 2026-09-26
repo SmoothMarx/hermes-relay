@@ -5404,3 +5404,37 @@ picker work belongs to slice C (tasks C10/C15/C17), so it was not duplicated.
 - **G3** `ui/screens/DashboardManagementScreen.kt`: gate its WebView `loadUrl` exactly as the sign-in screen is
   gated, so a non-tailnet dashboard-management URL cannot load while the mode is ON.
 - **G4** extend the existing connection-fields test with a round-trip/default case for the new flag.
+
+## Post-review amendments (independent review pass)
+
+Three independent reviewers (spec-compliance, code-quality, compile-risk) read the delivered diff against
+ADR 75 and the frozen contracts. Verdicts and dispositions:
+
+1. **Spec gate - one BLOCKING finding, confirmed and fixed.** With the mode already connected over a
+   non-Tailscale route, switching it ON called `probeNow()` which funnelled into the resolver's
+   `resolved == null && _connectionState == Connected` early-return: the pre-existing transient-miss
+   optimisation kept publishing the live (LAN) endpoint, so the socket kept carrying Hermes bytes after the
+   user excluded that route. Fixed in `ConnectionManager.kt`: while the mode is on, that early-return no
+   longer applies in `probeAndReconnectNow()` or `refreshActiveEndpoint()` - the resolver publishes no
+   endpoint, records `PolicyNoEligibleRoute`, and the live socket is torn down. The mode-off path is
+   byte-for-byte unchanged. Two further spec notes were also applied: the authenticated-metadata reconnect
+   now passes the same dial-time guard as every other connect path, and the resolver's diagnostics no longer
+   claim "using configured relay URL" when the mode is what blanked that URL.
+2. **Compile gate - one finding, REFUTED with evidence.** It reported `resources.getString(...)` in
+   `DashboardManagementScreen.kt` as an unresolved reference. It resolves: the line sits inside
+   `WebView(viewContext).apply { ... }`, whose receiver supplies `View.getResources()`. The cloud compile
+   lane (`android_on_demand`, which checks out `inputs.head_sha` in every job - verified in the workflow)
+   assembles both debug flavors green on that exact tree, which is only possible if the file compiles. The
+   call is normalised to `context.getString(...)` for consistency with the rest of the dialog, not because
+   it was broken.
+3. **Quality gate - PASS**, six non-blocking notes; three were applied (plugin-proxy client now goes through
+   `HermesClients.build` so it is `enforcer.register`-ed and its pooled connections are evicted on a
+   generation bump; the native dashboard launcher records a diagnostics entry instead of returning silently;
+   the `resources`/`context` consistency above).
+
+**Consciously not done, with reasons.** (a) The static gate proves the invariant at the client-construction
+seam ("every Hermes OkHttp client is decorated") rather than re-scanning `newWebSocket`/SSE/`loadUrl` call
+sites: those transports run on a client already bound at construction, or are URL-gated, so the seam is the
+sound place to prove it - re-scanning call sites would produce false positives without adding coverage.
+(b) On-device questions (does an excluded app get a bind error or a black hole; does `Network.getAllByName`
+use MagicDNS) are settled only by a device matrix, not by any diff or unit test.

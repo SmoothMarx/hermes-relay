@@ -4514,6 +4514,13 @@ the mode never enables or disables itself. "Tailscale is off", "not signed in", 
 app is excluded by split tunnelling" are indistinguishable to the app, so the blocked state
 reports one reason and must not claim a specific diagnosis.
 
+**Amended during implementation (independent review).** Turning the mode ON while a relay socket is
+already live over a non-Tailscale route must not leave that socket carrying bytes: the resolver's
+"`resolved == null && connected`" transient-miss early-return is a performance optimisation for the
+mode-off case and does not apply while the mode is on, so the connection reaches the blocked state
+(`PolicyNoEligibleRoute`) and the live socket is torn down instead of continuing over the LAN route the
+user just excluded. Turning the mode on is therefore a fail-closed transition, not a preference hint.
+
 **Key files:**
 
 - `app/src/main/kotlin/com/hermesandroid/relay/data/ConnectionData.kt`
