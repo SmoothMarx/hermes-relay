@@ -1215,6 +1215,7 @@
     <string name="bot_mode_chat_open_failed">Bot Chat could not open</string>
     <string name="bot_mode_created">%1$s created</string>
     <string name="bot_mode_create_failed">Bot could not be created</string>
+    <string name="bot_mode_activity_disclosure">Some conversations running on this host cannot be matched to a profile, so they are not shown with a status. A profile with no status may be quiet, or running one of them.</string>
     <string name="drawer_filter_by_source">Filter by source</string>
     <string name="drawer_show_sources">Show sources</string>
     <string name="drawer_refresh_sessions">Refresh sessions</string>

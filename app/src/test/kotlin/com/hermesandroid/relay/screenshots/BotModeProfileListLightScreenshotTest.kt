@@ -26,8 +26,9 @@ import org.robolectric.annotation.GraphicsMode
 
 /**
  * Screen 1's status light, rendered: a lit row, a row with nothing attributable (recency only),
- * a row owned by another connection, which is never lit, and a stale row, which keeps the existing
- * offline marker and is never lit either (T2.2).
+ * a row owned by another connection, which is never lit, a stale row, which keeps the existing
+ * offline marker and is never lit either (T2.2), and the honesty disclosure (T2.4) — shown when a
+ * completed pass could not attribute every live row, and withheld when it could.
  */
 @RunWith(AndroidJUnit4::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
@@ -70,10 +71,42 @@ class BotModeProfileListLightScreenshotTest {
         )
     }
 
+    /**
+     * T2.4 — the shown half: a completed pass that could not attribute every live row. The Builder
+     * row is lit from the snapshot while Lucy stays on recency, which is exactly the reading the
+     * line qualifies.
+     */
+    @Test
+    fun ambiguousDisclosure() {
+        capture(
+            fileName = "bot-mode-profile-list-disclosure.png",
+            activityStates = mapOf(
+                botModeActivityKey("builder", "builder-bot-chat")!! to SessionActivityState.Working,
+            ),
+            activityComplete = true,
+            activityAmbiguous = true,
+        )
+    }
+
+    /** The withheld half of the same pass-shaped state: a completed pass that attributed every row. */
+    @Test
+    fun settledProfileRowsWithoutDisclosure() {
+        capture(
+            fileName = "bot-mode-profile-list-settled.png",
+            activityStates = mapOf(
+                botModeActivityKey("builder", "builder-bot-chat")!! to SessionActivityState.Working,
+            ),
+            activityComplete = true,
+            activityAmbiguous = false,
+        )
+    }
+
     private fun capture(
         fileName: String,
         activityStates: Map<String, SessionActivityState>,
         staleProfiles: Set<String> = emptySet(),
+        activityComplete: Boolean = false,
+        activityAmbiguous: Boolean = false,
     ) {
         val output = File("build/ui-evidence/$fileName")
         output.parentFile?.mkdirs()
@@ -95,6 +128,8 @@ class BotModeProfileListLightScreenshotTest {
                         onNewBot = {},
                         nowMs = NOW,
                         activityStates = activityStates,
+                        activityComplete = activityComplete,
+                        activityAmbiguous = activityAmbiguous,
                     )
                 }
             }

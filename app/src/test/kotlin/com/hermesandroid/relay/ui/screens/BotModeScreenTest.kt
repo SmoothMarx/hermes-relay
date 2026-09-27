@@ -1,5 +1,6 @@
 package com.hermesandroid.relay.ui.screens
 
+import android.content.Context
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
@@ -7,6 +8,8 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.performClick
+import androidx.test.core.app.ApplicationProvider
+import com.hermesandroid.relay.R
 import com.hermesandroid.relay.data.BotGroupMessage
 import com.hermesandroid.relay.data.BotGatewayRoute
 import com.hermesandroid.relay.data.BotGatewayRouteKey
@@ -23,7 +26,10 @@ import com.hermesandroid.relay.ui.components.botModeActivityKey
 import com.hermesandroid.relay.ui.theme.HermesRelayTheme
 import com.hermesandroid.relay.viewmodel.botModeActivitySnapshot
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -37,6 +43,8 @@ import org.robolectric.annotation.GraphicsMode
 class BotModeScreenTest {
     @get:Rule
     val compose = createComposeRule()
+
+    private val context: Context = ApplicationProvider.getApplicationContext()
 
     @Test
     fun `tabs filter bots and read only groups without changing workspace`() {
@@ -272,6 +280,96 @@ class BotModeScreenTest {
         assertEquals(emptyMap<String, SessionActivityState>(), botModeActivityStates(snapshot, "  "))
     }
 
+    @Test
+    fun `a settled and ambiguous pass shows the disclosure above the rows`() {
+        // T2.4 — the disclosure's trigger, rendered: a completed pass that could not attribute every
+        // live row. The rows keep their own honesty beside it (here neither profile row is
+        // attributable, so both show recency), which is exactly what the line exists to qualify.
+        render(
+            screenState = state(bots = listOf(lucy()), groups = emptyList()),
+            activityComplete = true,
+            activityAmbiguous = true,
+        )
+
+        compose.onNodeWithText(context.getString(R.string.bot_mode_activity_disclosure)).assertExists()
+        compose.onAllNodesWithText("ago", substring = true).assertCountEquals(1)
+        compose.onAllNodesWithContentDescription("Needs input").assertCountEquals(0)
+    }
+
+    @Test
+    fun `a pass that never completed shows no disclosure`() {
+        // Finding 0a — `complete` and `ambiguous` are two axes: an unsettled picture (a transient
+        // failure, or a host without the active-list RPC) states nothing at all, not even the caveat.
+        render(activityComplete = false, activityAmbiguous = true)
+
+        compose.onAllNodesWithText(
+            context.getString(R.string.bot_mode_activity_disclosure),
+        ).assertCountEquals(0)
+    }
+
+    @Test
+    fun `a complete pass that attributed every live row shows no disclosure`() {
+        // The other axis: when every live row was attributed, a lightless row is authoritative and
+        // needs no caveat, so the header stays clean.
+        render(
+            activityStates = mapOf(
+                botModeActivityKey("default", "bot-root")!! to SessionActivityState.NeedsInput,
+            ),
+            activityComplete = true,
+            activityAmbiguous = false,
+        )
+
+        compose.onAllNodesWithText(
+            context.getString(R.string.bot_mode_activity_disclosure),
+        ).assertCountEquals(0)
+        compose.onNodeWithContentDescription("Needs input").assertExists()
+    }
+
+    @Test
+    fun `the disclosure is dismissible`() {
+        render(
+            screenState = state(bots = listOf(lucy(), builder()), groups = emptyList()),
+            activityComplete = true,
+            activityAmbiguous = true,
+        )
+
+        val disclosure = context.getString(R.string.bot_mode_activity_disclosure)
+        compose.onNodeWithText(disclosure).assertExists()
+
+        compose.onNodeWithContentDescription(context.getString(R.string.common_dismiss)).performClick()
+
+        compose.onAllNodesWithText(disclosure).assertCountEquals(0)
+        // Dismissing the caveat leaves the rows alone: the light path and the recency are unchanged.
+        compose.onAllNodesWithText("ago", substring = true).assertCountEquals(2)
+    }
+
+    @Test
+    fun `the disclosure is scoped to the active connection and needs both axes`() {
+        // The wire half of T2.4, as pure assertions: the two facts are read off the snapshot stated
+        // for the connection on screen (the same D3 scope rule the states map already applies — a
+        // snapshot left over from a previous active connection settles nothing here either), and the
+        // rule itself needs `complete` **and** `ambiguous` (never one alone).
+        val snapshot = botModeActivitySnapshot(
+            connectionId = "home",
+            states = mapOf(
+                SessionActivityOwner.of("home", "default", "bot-root") to SessionActivityState.NeedsInput,
+            ),
+            ambiguous = true,
+            complete = true,
+        )
+
+        assertEquals(snapshot, botModeActivitySnapshotScope(snapshot, "home"))
+        assertNull(botModeActivitySnapshotScope(snapshot, "lab"))
+        assertNull(botModeActivitySnapshotScope(snapshot, null))
+        assertNull(botModeActivitySnapshotScope(snapshot, "  "))
+        assertNull(botModeActivitySnapshotScope(null, "home"))
+
+        assertTrue(botModeActivityDisclosureVisible(complete = true, ambiguous = true))
+        assertFalse(botModeActivityDisclosureVisible(complete = true, ambiguous = false))
+        assertFalse(botModeActivityDisclosureVisible(complete = false, ambiguous = true))
+        assertFalse(botModeActivityDisclosureVisible(complete = false, ambiguous = false))
+    }
+
     private fun render(
         onOpenBot: (BotRosterEntry) -> Unit = {},
         onOpenGroup: (BotGroupRoom) -> Unit = {},
@@ -280,6 +378,8 @@ class BotModeScreenTest {
         openingRoute: BotGatewayRouteKey? = null,
         screenState: BotModeState = state(),
         activityStates: Map<String, SessionActivityState> = emptyMap(),
+        activityComplete: Boolean = false,
+        activityAmbiguous: Boolean = false,
     ) {
         compose.setContent {
             HermesRelayTheme(appThemeId = "hermes-relay", themePreference = "dark") {
@@ -297,6 +397,8 @@ class BotModeScreenTest {
                     onNewBot = {},
                     nowMs = nowMs,
                     activityStates = activityStates,
+                    activityComplete = activityComplete,
+                    activityAmbiguous = activityAmbiguous,
                 )
             }
         }

@@ -30,6 +30,7 @@ import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
@@ -179,6 +180,42 @@ internal fun botModeActivityStates(
     return snapshot?.takeIf { it.connectionId == active }?.states ?: emptyMap()
 }
 
+/**
+ * The snapshot itself, when it belongs to [activeConnectionId], else `null`.
+ *
+ * The same scope rule [botModeActivityStates] applies to the states map, applied to the snapshot
+ * as a whole so T2.4's two facts (`complete`, `ambiguous`) are read off the pass that is stated
+ * for the connection on screen: a snapshot left over from a previous active connection settles
+ * nothing here either (`null` is the same "nothing settled": no light **and** no disclosure).
+ * Narrowing it means deleting the guard in this one function.
+ */
+internal fun botModeActivitySnapshotScope(
+    snapshot: BotModeActivitySnapshot?,
+    activeConnectionId: String?,
+): BotModeActivitySnapshot? {
+    val active = activeConnectionId?.trim()?.takeIf { it.isNotEmpty() } ?: return null
+    return snapshot?.takeIf { it.connectionId == active }
+}
+
+/**
+ * Whether the bounded honesty disclosure is shown (T2.4, D2, judge N3).
+ *
+ * `complete` and `ambiguous` are **two axes**, not one: `complete` = a `session.active_list` pass
+ * has run for the current scope at all, `ambiguous` = that pass could not attribute every live
+ * row. The line is shown only when both hold — the picture is settled **and** something in it is
+ * missing a status. Two consequences this function is the single statement of:
+ * - `complete == false` shows **nothing** (neither a light nor the caveat): an unsettled picture
+ *   is not evidence of a quiet host, and the disclosure would misdescribe it.
+ * - `ambiguous` alone is not enough and `complete && !ambiguous` says nothing: when every live row
+ *   was attributed, the absence of a light is authoritative and needs no caveat.
+ *
+ * It never asserts that nothing is running and never lists the unattributed conversations: "no
+ * light" may mean *quiet* **or** *running but unattributable*, and that is the one sentence the
+ * line exists to speak.
+ */
+internal fun botModeActivityDisclosureVisible(complete: Boolean, ambiguous: Boolean): Boolean =
+    complete && ambiguous
+
 @Composable
 fun BotModeScreen(
     connectionViewModel: ConnectionViewModel,
@@ -192,6 +229,9 @@ fun BotModeScreen(
     // T2.3 — the profile rows' light comes from the active connection's own snapshot (T1.4); the
     // per-row guards stay in `botProfileRowLight`, which is the single keying site.
     val activitySnapshot by connectionViewModel.botModeActivitySnapshot.collectAsState()
+    // T2.4 — the disclosure's two facts come off the same scoped snapshot the light does, so a
+    // pass stated for another connection can neither light a row nor add a caveat here.
+    val scopedActivitySnapshot = botModeActivitySnapshotScope(activitySnapshot, activeConnection?.id)
     val scope = rememberCoroutineScope()
     val resources = LocalResources.current
     val snackbar = remember { SnackbarHostState() }
@@ -220,6 +260,8 @@ fun BotModeScreen(
         activeConnection = activeConnection,
         selectedGatewayId = selectedGatewayId,
         activityStates = botModeActivityStates(activitySnapshot, activeConnection?.id),
+        activityComplete = scopedActivitySnapshot?.complete == true,
+        activityAmbiguous = scopedActivitySnapshot?.ambiguous == true,
         onBack = onBack,
         onRefresh = connectionViewModel::refreshBotMode,
         onSelectGateway = { selectedGatewayId = it },
@@ -301,6 +343,13 @@ internal fun BotModeContent(
     snackbarHost: @Composable () -> Unit = {},
     nowMs: Long = System.currentTimeMillis(),
     activityStates: Map<String, SessionActivityState> = emptyMap(),
+    // T2.4 — the two facts about the activity pass that published `activityStates`: `complete` =
+    // such a pass has run for the current scope at all, `ambiguous` = it could not attribute every
+    // live row. They are their own parameters because the states map alone cannot express the
+    // condition (an unattributed row leaves no key, exactly like a quiet one). Both carry defaults,
+    // so every existing fixture and call site compiles unchanged (T6.2).
+    activityComplete: Boolean = false,
+    activityAmbiguous: Boolean = false,
     botAvatar: @Composable (BotRosterEntry, Dp) -> Unit = { bot, size ->
         BotFallbackAvatar(bot.displayName, size)
     },
@@ -309,6 +358,9 @@ internal fun BotModeContent(
     var searchOpen by remember { mutableStateOf(false) }
     var query by remember { mutableStateOf("") }
     var gatewayMenuOpen by remember { mutableStateOf(false) }
+    // T2.4 — a settled ambiguity is disclosed once; dismissing it holds for this screen until it is
+    // left and reopened (nothing re-shows it while the same pass stands).
+    var disclosureDismissed by rememberSaveable { mutableStateOf(false) }
     val visibleBots = state.roster.bots
         .filterNot(BotRosterEntry::hidden)
         .filter { selectedGatewayId == null || it.route?.connectionId == selectedGatewayId }
@@ -532,6 +584,16 @@ internal fun BotModeContent(
                 HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
             }
 
+            // T2.4 — the list header's one honest caveat, directly above the rows it is about and
+            // below everything that scopes them. Shown only while the picture is settled **and**
+            // incomplete, never as a count and never as a list.
+            if (
+                botModeActivityDisclosureVisible(activityComplete, activityAmbiguous) &&
+                !disclosureDismissed
+            ) {
+                BotActivityDisclosure(onDismiss = { disclosureDismissed = true })
+            }
+
             when {
                 state.loading && rows.isEmpty() -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator(modifier = Modifier.size(28.dp), strokeWidth = 2.dp)
@@ -617,6 +679,51 @@ private fun BotModeFilterBar(filter: BotModeFilter, onFilter: (BotModeFilter) ->
                     )
                 }
             }
+        }
+    }
+}
+
+/**
+ * T2.4 — the bounded honesty disclosure: one dismissible line above the profile rows, shown only
+ * while the activity picture is settled **and** incomplete ([botModeActivityDisclosureVisible]).
+ *
+ * What it may say is bounded by what the platform supports (D2, ADR 48):
+ * - it states that **some** running conversations on this host cannot be attributed to a profile
+ *   and are therefore not shown with a status — never a count ("0 running" is banned: the client
+ *   cannot know it), never a list of the unattributed conversations, no profile named;
+ * - it is also the one place the surface tells the user that a lightless profile may be *quiet*
+ *   **or** *running but unattributable* (judge N3 — the two are byte-identical per row by design).
+ *
+ * It carries no state of its own: it is body text plus a labelled dismiss affordance
+ * (`common_dismiss`), so nothing here communicates activity or health by colour alone.
+ */
+@Composable
+private fun BotActivityDisclosure(onDismiss: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(start = 16.dp, end = 8.dp, top = 4.dp, bottom = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Surface(
+            modifier = Modifier.weight(1f),
+            shape = RoundedCornerShape(12.dp),
+            color = MaterialTheme.colorScheme.surfaceContainer,
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.28f)),
+        ) {
+            Text(
+                stringResource(R.string.bot_mode_activity_disclosure),
+                modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        IconButton(onClick = onDismiss) {
+            Icon(
+                imageVector = Icons.Outlined.Close,
+                contentDescription = stringResource(R.string.common_dismiss),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
     }
 }

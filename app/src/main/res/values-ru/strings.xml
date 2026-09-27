@@ -1051,6 +1051,7 @@
     <string name="bot_mode_chat_open_failed">Не удалось открыть Bot Chat</string>
     <string name="bot_mode_created">%1$s создан</string>
     <string name="bot_mode_create_failed">Не удалось создать бота</string>
+    <string name="bot_mode_activity_disclosure">Некоторые запущенные на этом хосте разговоры нельзя сопоставить с профилем, поэтому они не отображаются со статусом. Профиль без статуса может быть неактивен или выполнять один из них.</string>
     <string name="drawer_filter_by_source">Фильтр по источнику</string>
     <string name="drawer_show_sources">Показать источники</string>
     <string name="drawer_refresh_sessions">Обновить сессии</string>

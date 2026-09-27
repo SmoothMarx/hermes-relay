@@ -1032,6 +1032,7 @@
     <string name="bot_mode_chat_open_failed">Bot Chatを開けませんでした</string>
     <string name="bot_mode_created">%1$sを作成しました</string>
     <string name="bot_mode_create_failed">Botを作成できませんでした</string>
+    <string name="bot_mode_activity_disclosure">このホストで実行中の会話の一部はプロファイルに紐付けられないため、ステータスなしで表示されます。ステータスのないプロファイルは、静かな場合もあれば、そのいずれかを実行している場合もあります。</string>
     <string name="drawer_filter_by_source">ソースによるフィルター</string>
     <string name="drawer_show_sources">ソースを表示</string>
     <string name="drawer_refresh_sessions">セッションを更新する</string>

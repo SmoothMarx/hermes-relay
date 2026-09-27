@@ -1016,6 +1016,7 @@
     <string name="bot_mode_chat_open_failed">无法打开 Bot Chat</string>
     <string name="bot_mode_created">已创建 %1$s</string>
     <string name="bot_mode_create_failed">无法创建 Bot</string>
+    <string name="bot_mode_activity_disclosure">此主机上有一些正在运行的对话无法对应到某个配置文件，因此不会显示状态。没有状态的配置文件可能处于空闲，也可能正在运行其中之一。</string>
     <string name="drawer_filter_by_source">按来源筛选</string>
     <string name="drawer_show_sources">显示来源</string>
     <string name="drawer_refresh_sessions">刷新会话</string>

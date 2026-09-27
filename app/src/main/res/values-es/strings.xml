@@ -937,6 +937,7 @@
     <string name="bot_mode_chat_open_failed">No se pudo abrir el Bot Chat</string>
     <string name="bot_mode_created">Se creó %1$s</string>
     <string name="bot_mode_create_failed">No se pudo crear el Bot</string>
+    <string name="bot_mode_activity_disclosure">Algunas conversaciones en ejecución en este host no se pueden asociar a un perfil, por lo que no se muestran con un estado. Un perfil sin estado puede estar inactivo o ejecutando una de ellas.</string>
     <string name="drawer_filter_by_source">Filtrar por fuente</string>
     <string name="drawer_show_sources">Mostrar fuentes</string>
     <string name="drawer_refresh_sessions">Actualizar sesiones</string>
