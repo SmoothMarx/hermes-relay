@@ -365,8 +365,105 @@ enabled (one of those also fails the client's hard-coded `min_messages=1`, becau
 Recorded as a measurement, not a change of shape: a decision is still needed on how the conversation sub-menu
 and the tab strip obtain the row of a hidden canonical conversation.
 
-## T0.2, T0.3 — pending
+## T0.2, T0.3 — answered
 
-Not answered in this pass.
+The three P0 questions and their answers: S1 (§T0.1, measured on a live store) — the directory row `id` **is** the
+compression-lineage tip; S2 (T0.2 below) — a route-scoped directory read is served by the **route's own** dashboard
+client and the readiness barrier clears only after that read succeeds; S3 (T0.3 below) — attribution is per row and
+conservative, and `BackgroundWork` never describes a conversation the client is not attached to. The two questions
+below were answered after the T0.1 measurement, on the authorized path: this build host has no Android toolchain, so
+their evidence is the required-checks lane with `android_preset=focused` on an exact pushed commit, not a local run.
 
-final result: pending
+## T0.2 — the route's own directory read, and the readiness barrier that admits gateway work
+
+**Question.** On a **cold** client (no socket yet), does a route-scoped profile lister (a) read that route's profile
+through the route's **own** dashboard client rather than the active connection's dashboard, and (b) admit the socket
+observation and the `session.active_list` poll **only after** that read succeeds — i.e. is the readiness barrier,
+not socket readiness, what unlocks the work?
+
+**Answer.** Yes to both. The route's dashboard served the profile-scoped read and the published rows were the
+route's rows; the active connection's dashboard served **no** `/api/sessions` request at all. The barrier stayed
+closed — no ticket mint, no server socket, no `session.active_list` — both before the read and while it was held in
+flight, and opened after the read succeeded, with the route's owner carried on the app's own exact-owner event.
+
+**Mechanism.** `ProfileController.listProfileScopedSessions` resolves `activeConnectionId` /
+`activeDashboardUrlProvider()` (`viewmodel/connection/ProfileController.kt:819-820`); the barrier is
+`automaticGatewayWorkDeferred()` (`viewmodel/ChatViewModel.kt:5508-5518`), which gates `prewarmGateway()`
+(`:3549-3558`) and `requestSessionActivityRefresh()` (`:2490-2504`); the success fact is published as
+`sessionDirectoryReadyEvents` / `ownsSessionDirectoryReadyEvent` (`:506-514`, payload `:229-233`) and is already
+consumed by `runtime/HermesRuntimeBinder.kt:408-417`. Both `automaticGatewayWorkDeferred` and
+`lastSessionRefreshSuccessOwner` are private, so the probe asserts through those published surfaces and adds **no**
+production line.
+
+**Measurement.** Two Robolectric tests in
+`app/src/test/kotlin/com/hermesandroid/relay/viewmodel/BotModeRouteDirectoryBarrierTest.kt`, registered in
+`scripts/android-prepush.py`'s `FOCUSED_TESTS` in the same commit so the `focused` preset actually runs them. The
+tests hold two `MockWebServer` dashboards (the route's and the active connection's) and a cold client, and assert
+only through the app's published surfaces. Green on pushed commit `897ea559`: required-checks lane with
+`android_preset=focused` (run `36318255373`, job `android_on_demand / Focused Android checks` `108617025965`,
+`success`). The job's own checkout reads `ref: 897ea559…` — that is the evidence of which commit was checked, since
+a dispatched run's recorded head is the dispatch ref's tip — the executed filter named the class on both
+`:app:testSideloadDebugUnitTest` and `:app:testGooglePlayDebugUnitTest`, both test tasks executed (neither
+UP-TO-DATE nor FROM-CACHE), and `BUILD SUCCESSFUL` printed twice. The lane emits no per-test PASS line, so "the
+class ran" rests on the executed filter plus the green task.
+
+**Consequence for the plan.** The sequencing question S2 resolves to the **no-reduction** branch: the barrier
+clears, so P5 keeps its live badges and the only wiring left is T5.0's (`BotChatScreen`'s `DisposableEffect`), which
+carries its own screen-level check. The lane proves the view-model seam; the screen's own wiring and anything
+**rendered** stay device rows (§7). P0 added no production line, so there is nothing to remove at the phase end.
+
+## T0.3 — how much of `session.active_list` the client can attribute away from the attached conversation
+
+**Question.** For a `session.active_list` payload carrying several rows and at least one conversation that is not
+the attached one: which rows can the client attribute to a conversation, which stay unresolved, and can
+`BackgroundWork` ever describe a conversation the client is **not** attached to?
+
+**Answer.** The split is per row and conservative. Attributed: the attached conversation (current-owner fallback,
+`Working`) and a sibling row that carries explicit `profile` metadata **and** a unique client-side owner
+(`NeedsInput`). Unresolved, with **no key at all**: a row without `profile` metadata, a stored id claimed by two
+client-side owners, and a stored id with no directory owner — never an invented owner and never a wrong one. An
+incomplete snapshot does not remove unambiguously owned prior rows (fail-closed completeness); a control snapshot of
+the same shape in which every remaining row is attributable does settle them, which is what keeps that assertion
+honest.
+**`BackgroundWork`: no.** With a running `process.list` in the bound session's snapshot, the attached
+conversation's key carried `BackgroundWork` and the state map held exactly that one key, so the projection is
+single-slot on the bound session and cannot describe a non-attached conversation.
+
+**Current-contract caveat (measured).** Under today's upstream shape the `active_status_*` fixture rows carry no
+`profile` metadata, and the read model documents the field as "Future-compatible only; null for the current upstream
+contract" (`network/upstream/GatewayModels.kt:418-428`). The contract docs say the same: "active-list rows normally
+have no profile metadata", with attribution from exact ownership, from explicit profile metadata **if a future
+upstream sends it**, or from the currently selected passive session when its durable id has exactly one owner in the
+current directory (`docs/spec.md` §"Authoritative session activity"; `docs/upstream-surface-matrix.md:54`). So
+**every sibling row is unresolved today** and only the attached conversation shows a state; the `profile`-carrying
+arm is the documented future path, not a today case.
+
+**Mechanism.** `resolveGatewayActiveSessions` (`viewmodel/ChatViewModel.kt:344-388`) is the resolver, the published
+`backgroundSessionActivityStates` (`:485-488`) is the surface a row's state is read from, the directory is set
+through the public `updateSessionActivityDirectory` (`:2358-2379`), and the `BackgroundWork` overlay is projected
+on the bound session with `gatewayProcessController.ownsSnapshot(...)` (`:2669-2691`, re-projected on every
+`backgroundProcesses` emission at `:4259-4266`).
+
+**Measurement.** Three Robolectric tests in
+`app/src/test/kotlin/com/hermesandroid/relay/viewmodel/SessionActivityAttributionSplitTest.kt` (rows scripted
+through the harness payload builder, directory set through the public setter), together with the existing
+pure-function table `app/src/test/kotlin/com/hermesandroid/relay/viewmodel/SessionActivityResolutionTest.kt` — both
+registered in `FOCUSED_TESTS` in the same commit, since the resolver was previously unguarded by the lane. The class
+first went green on pushed commit `82052433` (run `36321137520`), and was re-verified after the caveat above was
+written into the class on the pushed tip `c715ab73`: required-checks lane with `android_preset=focused` (run
+`36321650535`, job `android_on_demand / Focused Android checks` `108626597028`, `success`). That job's own checkout
+reads `ref: c715ab73…`; the executed filter named `SessionActivityAttributionSplitTest` **and**
+`SessionActivityResolutionTest` (alongside the T0.2 class) on both flavors, both test tasks executed, and
+`BUILD SUCCESSFUL` printed twice. Same limit as T0.2: the lane prints no per-test PASS line.
+
+**Consequence for the plan.** The sequencing question S3 resolves to the plan's pre-decided fallback branch: since a
+sibling row is not attributable under today's contract, no row-level indicator can be fed by a sibling's live state,
+so a row without an attributable state shows **recency** and never an invented state (T2.1's null-light case,
+T2.2's honesty rule, D2), and the fact that some running conversations cannot be attributed is disclosed once at the
+list header (T2.4) rather than rendered as "0 running" or as a list. `profileLight` stays behind the same call site
+for whatever the snapshot can attribute. T1.6's join is unaffected — it carries both ids, tries the stored id first
+and the tip second, and shows no badge on ambiguity — and the hidden-row question does not belong here: it is
+T1.7's union. What a chip or badge actually **renders** stays a §7 device row.
+
+final result: answered — three written answers; no shipped code and no production line (T0.1 is a read-only live
+measurement, T0.2/T0.3 are Robolectric classes run by the `focused` lane on the pushed commits)
