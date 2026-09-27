@@ -3,7 +3,7 @@ package com.hermesandroid.relay.viewmodel.connection
 import com.hermesandroid.relay.data.BotGatewayRoute
 import com.hermesandroid.relay.network.upstream.DashboardApiClient
 import com.hermesandroid.relay.network.upstream.SESSION_LIST_WINDOW_LIMIT
-import com.hermesandroid.relay.network.upstream.SessionItem
+import com.hermesandroid.relay.network.upstream.models.SessionItem
 import java.util.Locale
 
 /**
