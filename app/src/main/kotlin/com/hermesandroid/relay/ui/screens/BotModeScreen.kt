@@ -2,6 +2,7 @@ package com.hermesandroid.relay.ui.screens
 
 import android.text.format.DateUtils
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -64,6 +65,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -77,6 +80,9 @@ import com.hermesandroid.relay.data.BotGatewayRouteKey
 import com.hermesandroid.relay.data.BotModeState
 import com.hermesandroid.relay.data.BotRosterEntry
 import com.hermesandroid.relay.data.Connection
+import com.hermesandroid.relay.data.SessionActivityState
+import com.hermesandroid.relay.ui.components.profileLight
+import com.hermesandroid.relay.ui.components.sessionActivityLabelResource
 import com.hermesandroid.relay.ui.theme.RelayRefresh
 import com.hermesandroid.relay.viewmodel.ConnectionViewModel
 import java.io.File
@@ -103,6 +109,41 @@ private sealed interface BotModeRow {
         override val activityAtMs: Long = value.latestActivityAtMs
     }
 }
+
+/**
+ * The state one profile row may be lit by, or `null` when nothing may be stated (the row then
+ * shows its recency only).
+ *
+ * Two guards, both of them product rules rather than taste:
+ * - **D3 / ADR 67:** the activity projection is scoped to the *active* connection, so a row owned
+ *   by any other connection has no attributable state at all — it shows recency, never a light.
+ *   Two connections may carry the same profile name (the fleet roster merges on that name), which
+ *   is exactly why the connection is compared here and not only the profile.
+ * - **B4 (inside [profileLight]):** only `NeedsInput > Starting > Working` can describe a profile;
+ *   transport states and process-level background work cannot, and an unattributable conversation
+ *   can never light the row.
+ *
+ * The keys are the conversations the row owns, by **both** ids the roster states for each of them
+ * (the registry id and the compression-lineage tip): the projection's own key is built from
+ * whichever id the directory read returned, and that is not measurable from here, so both are
+ * offered and no light is invented when neither matches.
+ */
+internal fun botProfileRowLight(
+    bot: BotRosterEntry,
+    activeConnectionId: String?,
+    states: Map<String, SessionActivityState>,
+): SessionActivityState? {
+    val route = bot.route ?: return null
+    val active = activeConnectionId?.trim()?.takeIf { it.isNotEmpty() } ?: return null
+    if (route.connectionId != active) return null
+    return profileLight(states = states, profileKey = route.profileName, keys = bot.ownedSessionIds())
+}
+
+/** Every id the roster uses for a conversation this profile row owns. */
+private fun BotRosterEntry.ownedSessionIds(): List<String> =
+    listOfNotNull(canonicalSession, lastSession, workerSession)
+        .flatMap { summary -> listOf(summary.id, summary.resolvedId) }
+        .filter { it.isNotBlank() }
 
 @Composable
 fun BotModeScreen(
@@ -221,6 +262,7 @@ internal fun BotModeContent(
     onNewBot: () -> Unit,
     snackbarHost: @Composable () -> Unit = {},
     nowMs: Long = System.currentTimeMillis(),
+    activityStates: Map<String, SessionActivityState> = emptyMap(),
     botAvatar: @Composable (BotRosterEntry, Dp) -> Unit = { bot, size ->
         BotFallbackAvatar(bot.displayName, size)
     },
@@ -475,6 +517,11 @@ internal fun BotModeContent(
                                 opening = openingRoute != null && openingRoute == row.value.route?.key,
                                 onClick = { onOpenBot(row.value) },
                                 avatar = { botAvatar(row.value, 56.dp) },
+                                light = botProfileRowLight(
+                                    bot = row.value,
+                                    activeConnectionId = activeConnection?.id,
+                                    states = activityStates,
+                                ),
                                 nowMs = nowMs,
                             )
                             is BotModeRow.Group -> BotGroupRow(
@@ -536,6 +583,48 @@ private fun BotModeFilterBar(filter: BotModeFilter, onFilter: (BotModeFilter) ->
     }
 }
 
+/**
+ * One profile row's status: a dot **and** the state's own label, in the label-and-dot shape the
+ * session drawer already uses for the same vocabulary.
+ *
+ * ADR 48 (C2): colour never carries the state alone — the label is rendered and is also the
+ * chip's `contentDescription`, so the row is legible to TalkBack and at 200 % font. Only states
+ * [profileLight] can return reach this composable, so nothing unattributable is ever drawn.
+ */
+@Composable
+private fun BotStatusChip(state: SessionActivityState) {
+    val label = stringResource(sessionActivityLabelResource(state))
+    val color = when (state) {
+        SessionActivityState.Starting,
+        SessionActivityState.Working,
+        -> RelayRefresh.Relay
+        SessionActivityState.NeedsInput -> RelayRefresh.Amber
+        SessionActivityState.BackgroundWork,
+        SessionActivityState.Checking,
+        SessionActivityState.Unavailable,
+        -> MaterialTheme.colorScheme.onSurfaceVariant
+    }
+    Row(
+        modifier = Modifier.semantics(mergeDescendants = true) { contentDescription = label },
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        Box(
+            modifier = Modifier
+                .size(7.dp)
+                .clip(CircleShape)
+                .background(color),
+        )
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelMedium,
+            color = color,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+}
+
 @Composable
 private fun BotConversationRow(
     bot: BotRosterEntry,
@@ -543,6 +632,7 @@ private fun BotConversationRow(
     opening: Boolean,
     onClick: () -> Unit,
     avatar: @Composable () -> Unit,
+    light: SessionActivityState?,
     nowMs: Long,
 ) {
     Row(
@@ -563,11 +653,17 @@ private fun BotConversationRow(
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f),
                 )
-                Text(
-                    bot.latestActivityAtMs.toBotModeTime(nowMs),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+                // The light and the recency are alternatives, never both: a row with nothing
+                // attributable to state shows when it was last active and claims nothing else.
+                if (light != null) {
+                    BotStatusChip(light)
+                } else {
+                    Text(
+                        bot.latestActivityAtMs.toBotModeTime(nowMs),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
             if (!connectionLabel.isNullOrBlank()) {
                 Row(verticalAlignment = Alignment.CenterVertically) {

@@ -1,7 +1,10 @@
 package com.hermesandroid.relay.ui.screens
 
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.performClick
 import com.hermesandroid.relay.data.BotGroupMessage
@@ -14,6 +17,8 @@ import com.hermesandroid.relay.data.BotRosterEntry
 import com.hermesandroid.relay.data.BotSessionSummary
 import com.hermesandroid.relay.data.Connection
 import com.hermesandroid.relay.data.Profile
+import com.hermesandroid.relay.data.SessionActivityState
+import com.hermesandroid.relay.ui.components.botModeActivityKey
 import com.hermesandroid.relay.ui.theme.HermesRelayTheme
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
@@ -121,17 +126,66 @@ class BotModeScreenTest {
         assertNotEquals(bot.lazyItemKey, bot.copy(route = null).lazyItemKey)
     }
 
+    @Test
+    fun `a profile row with an attributable state shows the state instead of recency`() {
+        render(
+            screenState = state(bots = listOf(lucy()), groups = emptyList()),
+            activityStates = mapOf(
+                botModeActivityKey("default", "bot-root")!! to SessionActivityState.NeedsInput,
+            ),
+        )
+
+        compose.onNodeWithContentDescription("Needs input").assertExists()
+        compose.onAllNodesWithText("ago", substring = true).assertCountEquals(0)
+    }
+
+    @Test
+    fun `a profile row with nothing attributable shows recency and no state`() {
+        render(screenState = state(bots = listOf(lucy()), groups = emptyList()))
+
+        compose.onAllNodesWithText("ago", substring = true).assertCountEquals(1)
+        compose.onAllNodesWithContentDescription("Needs input").assertCountEquals(0)
+    }
+
+    @Test
+    fun `a profile owned by another connection is never lit`() {
+        render(
+            activityStates = mapOf(
+                botModeActivityKey("default", "bot-root")!! to SessionActivityState.NeedsInput,
+                botModeActivityKey("default", "researcher-root")!! to SessionActivityState.Working,
+            ),
+        )
+
+        compose.onNodeWithContentDescription("Needs input").assertExists()
+        compose.onAllNodesWithContentDescription("Working").assertCountEquals(0)
+    }
+
+    @Test
+    fun `a state outside the profile vocabulary leaves the row on recency`() {
+        render(
+            screenState = state(bots = listOf(lucy()), groups = emptyList()),
+            activityStates = mapOf(
+                botModeActivityKey("default", "bot-root")!! to SessionActivityState.BackgroundWork,
+            ),
+        )
+
+        compose.onAllNodesWithContentDescription("Background work").assertCountEquals(0)
+        compose.onAllNodesWithText("ago", substring = true).assertCountEquals(1)
+    }
+
     private fun render(
         onOpenBot: (BotRosterEntry) -> Unit = {},
         onOpenGroup: (BotGroupRoom) -> Unit = {},
         selectedGatewayId: String? = null,
         nowMs: Long = NOW + 200_000L,
         openingRoute: BotGatewayRouteKey? = null,
+        screenState: BotModeState = state(),
+        activityStates: Map<String, SessionActivityState> = emptyMap(),
     ) {
         compose.setContent {
             HermesRelayTheme(appThemeId = "hermes-relay", themePreference = "dark") {
                 BotModeContent(
-                    state = state(),
+                    state = screenState,
                     connections = listOf(connection(), labConnection()),
                     activeConnection = connection(),
                     selectedGatewayId = selectedGatewayId,
@@ -143,59 +197,64 @@ class BotModeScreenTest {
                     onOpenGroup = onOpenGroup,
                     onNewBot = {},
                     nowMs = nowMs,
+                    activityStates = activityStates,
                 )
             }
         }
     }
 
-    private fun state() = BotModeState(
+    private fun state(
+        bots: List<BotRosterEntry> = listOf(lucy(), researcher()),
+        groups: List<BotGroupRoom> = listOf(launchCouncil()),
+    ) = BotModeState(
         roster = BotModeRoster(
-            bots = listOf(
-                BotRosterEntry(
-                    profile = Profile(name = "default", model = "gpt-5.6", description = "Operator"),
-                    displayName = "Lucy",
-                    route = com.hermesandroid.relay.data.BotGatewayRoute(
-                        key = com.hermesandroid.relay.data.BotGatewayRouteKey("home", "default"),
-                        connectionLabel = "Hermes",
-                    ),
-                    canonicalSession = BotSessionSummary(
-                        id = "bot-root",
-                        preview = "Drafted a rollout plan",
-                        lastActiveAtMs = NOW - 10_000L,
-                    ),
-                ),
-                BotRosterEntry(
-                    profile = Profile(name = "default", model = "gpt-5.6", description = "Research"),
-                    displayName = "Researcher",
-                    route = com.hermesandroid.relay.data.BotGatewayRoute(
-                        key = com.hermesandroid.relay.data.BotGatewayRouteKey("lab", "default"),
-                        connectionLabel = "Lab server",
-                    ),
-                    canonicalSession = BotSessionSummary(
-                        id = "researcher-root",
-                        preview = "Findings ready",
-                        lastActiveAtMs = NOW - 30_000L,
-                    ),
-                ),
-            ),
-            groups = listOf(
-                BotGroupRoom(
-                    key = "id:launch",
-                    roomId = "launch",
-                    name = "Launch Council",
-                    messages = listOf(
-                        BotGroupMessage(
-                            id = "message-1",
-                            senderName = "Lucy",
-                            senderKind = "member",
-                            text = "Rollout is clear",
-                            atMs = NOW - 20_000L,
-                        ),
-                    ),
-                    sourceConnectionIds = setOf("home", "lab"),
-                ),
+            bots = bots,
+            groups = groups,
+        ),
+    )
+
+    private fun lucy() = BotRosterEntry(
+        profile = Profile(name = "default", model = "gpt-5.6", description = "Operator"),
+        displayName = "Lucy",
+        route = com.hermesandroid.relay.data.BotGatewayRoute(
+            key = com.hermesandroid.relay.data.BotGatewayRouteKey("home", "default"),
+            connectionLabel = "Hermes",
+        ),
+        canonicalSession = BotSessionSummary(
+            id = "bot-root",
+            preview = "Drafted a rollout plan",
+            lastActiveAtMs = NOW - 10_000L,
+        ),
+    )
+
+    private fun researcher() = BotRosterEntry(
+        profile = Profile(name = "default", model = "gpt-5.6", description = "Research"),
+        displayName = "Researcher",
+        route = com.hermesandroid.relay.data.BotGatewayRoute(
+            key = com.hermesandroid.relay.data.BotGatewayRouteKey("lab", "default"),
+            connectionLabel = "Lab server",
+        ),
+        canonicalSession = BotSessionSummary(
+            id = "researcher-root",
+            preview = "Findings ready",
+            lastActiveAtMs = NOW - 30_000L,
+        ),
+    )
+
+    private fun launchCouncil() = BotGroupRoom(
+        key = "id:launch",
+        roomId = "launch",
+        name = "Launch Council",
+        messages = listOf(
+            BotGroupMessage(
+                id = "message-1",
+                senderName = "Lucy",
+                senderKind = "member",
+                text = "Rollout is clear",
+                atMs = NOW - 20_000L,
             ),
         ),
+        sourceConnectionIds = setOf("home", "lab"),
     )
 
     private fun connection() = Connection(
