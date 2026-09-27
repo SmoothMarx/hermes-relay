@@ -17,9 +17,11 @@ import com.hermesandroid.relay.data.BotRosterEntry
 import com.hermesandroid.relay.data.BotSessionSummary
 import com.hermesandroid.relay.data.Connection
 import com.hermesandroid.relay.data.Profile
+import com.hermesandroid.relay.data.SessionActivityOwner
 import com.hermesandroid.relay.data.SessionActivityState
 import com.hermesandroid.relay.ui.components.botModeActivityKey
 import com.hermesandroid.relay.ui.theme.HermesRelayTheme
+import com.hermesandroid.relay.viewmodel.botModeActivitySnapshot
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
 import org.junit.Rule
@@ -200,6 +202,74 @@ class BotModeScreenTest {
         compose.onAllNodesWithContentDescription("Needs input").assertCountEquals(0)
         compose.onNodeWithContentDescription("Working").assertExists()
         compose.onAllNodesWithText("ago", substring = true).assertCountEquals(2)
+    }
+
+    @Test
+    fun `the screen lights a row from the active connections own snapshot`() {
+        // The snapshot half of T2.3 end to end: the producer's own snapshot builder (T1.4) → the
+        // surface's scope → the row's guard and its status policy — so a state the app can actually
+        // publish is what lights the row, not a hand-built map. The screen's own two-line wire
+        // (`BotModeScreen`: collect the flow, hand `botModeActivityStates` to the content) is not
+        // reachable from a test that does not build a real `ConnectionViewModel`; a lit row in the
+        // running app stays the §7 device row.
+        val snapshot = botModeActivitySnapshot(
+            connectionId = "home",
+            states = mapOf(
+                SessionActivityOwner.of("home", "default", "bot-root") to SessionActivityState.NeedsInput,
+            ),
+            ambiguous = false,
+            complete = true,
+        )
+
+        render(
+            screenState = state(bots = listOf(lucy()), groups = emptyList()),
+            activityStates = botModeActivityStates(snapshot, "home"),
+        )
+
+        compose.onNodeWithContentDescription("Needs input").assertExists()
+        compose.onAllNodesWithText("ago", substring = true).assertCountEquals(0)
+    }
+
+    @Test
+    fun `a snapshot stated for another connection lights nothing`() {
+        // The snapshot is scoped to the connection whose chat published it (T1.4) and D3 states
+        // status only for the connection that has one, so a snapshot left over from a previous
+        // active connection is not offered to the rows — two connections may carry the same profile
+        // name and a session id key would otherwise match across gateways.
+        val snapshot = botModeActivitySnapshot(
+            connectionId = "lab",
+            states = mapOf(
+                SessionActivityOwner.of("lab", "default", "bot-root") to SessionActivityState.NeedsInput,
+            ),
+            ambiguous = false,
+            complete = true,
+        )
+
+        val states = botModeActivityStates(snapshot, "home")
+        render(
+            screenState = state(bots = listOf(lucy()), groups = emptyList()),
+            activityStates = states,
+        )
+
+        assertEquals(emptyMap<String, SessionActivityState>(), states)
+        compose.onAllNodesWithContentDescription("Needs input").assertCountEquals(0)
+        compose.onAllNodesWithText("ago", substring = true).assertCountEquals(1)
+    }
+
+    @Test
+    fun `no snapshot or no active connection states nothing`() {
+        val snapshot = botModeActivitySnapshot(
+            connectionId = "home",
+            states = mapOf(
+                SessionActivityOwner.of("home", "default", "bot-root") to SessionActivityState.NeedsInput,
+            ),
+            ambiguous = false,
+            complete = true,
+        )
+
+        assertEquals(emptyMap<String, SessionActivityState>(), botModeActivityStates(null, "home"))
+        assertEquals(emptyMap<String, SessionActivityState>(), botModeActivityStates(snapshot, null))
+        assertEquals(emptyMap<String, SessionActivityState>(), botModeActivityStates(snapshot, "  "))
     }
 
     private fun render(

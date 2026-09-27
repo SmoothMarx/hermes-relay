@@ -84,6 +84,7 @@ import com.hermesandroid.relay.data.SessionActivityState
 import com.hermesandroid.relay.ui.components.profileLight
 import com.hermesandroid.relay.ui.components.sessionActivityLabelResource
 import com.hermesandroid.relay.ui.theme.RelayRefresh
+import com.hermesandroid.relay.viewmodel.BotModeActivitySnapshot
 import com.hermesandroid.relay.viewmodel.ConnectionViewModel
 import java.io.File
 import kotlinx.coroutines.delay
@@ -153,6 +154,31 @@ private fun BotRosterEntry.ownedSessionIds(): List<String> =
         .flatMap { summary -> listOf(summary.id, summary.resolvedId) }
         .filter { it.isNotBlank() }
 
+/**
+ * The states a Bot Mode profile row may be lit by, read from the connection-scoped snapshot the
+ * active connection's own chat published (T2.3), or an empty map when nothing may be stated.
+ *
+ * The snapshot is the only source of a light on this surface (T1.4 / B3) and is the honest one:
+ * an unattributable live row carries **no** key in it, so it can never be dressed up here (D2,
+ * ADR 48).
+ *
+ * **Scoped by the same rule [botProfileRowLight] applies per row.** The snapshot belongs to one
+ * connection (`BotModeActivitySnapshot.connectionId`), and D3 states status only for the connection
+ * that has one. A snapshot stated for a connection that is not the active one is therefore **not**
+ * handed to the rows: its keys are `profile:storedSessionId`, and a profile name plus a session id
+ * can be shared by two connections, so offering them to the new active connection could light a row
+ * with another gateway's activity — the one failure the per-row guard exists to prevent, one level
+ * up. `null` (no connection active, or nothing published for the scope yet) is the same empty map:
+ * every row falls back to its recency and claims nothing live.
+ */
+internal fun botModeActivityStates(
+    snapshot: BotModeActivitySnapshot?,
+    activeConnectionId: String?,
+): Map<String, SessionActivityState> {
+    val active = activeConnectionId?.trim()?.takeIf { it.isNotEmpty() } ?: return emptyMap()
+    return snapshot?.takeIf { it.connectionId == active }?.states ?: emptyMap()
+}
+
 @Composable
 fun BotModeScreen(
     connectionViewModel: ConnectionViewModel,
@@ -163,6 +189,9 @@ fun BotModeScreen(
     val state by connectionViewModel.botModeState.collectAsState()
     val connections by connectionViewModel.connections.collectAsState()
     val activeConnection by connectionViewModel.activeConnection.collectAsState()
+    // T2.3 — the profile rows' light comes from the active connection's own snapshot (T1.4); the
+    // per-row guards stay in `botProfileRowLight`, which is the single keying site.
+    val activitySnapshot by connectionViewModel.botModeActivitySnapshot.collectAsState()
     val scope = rememberCoroutineScope()
     val resources = LocalResources.current
     val snackbar = remember { SnackbarHostState() }
@@ -190,6 +219,7 @@ fun BotModeScreen(
         connections = connections,
         activeConnection = activeConnection,
         selectedGatewayId = selectedGatewayId,
+        activityStates = botModeActivityStates(activitySnapshot, activeConnection?.id),
         onBack = onBack,
         onRefresh = connectionViewModel::refreshBotMode,
         onSelectGateway = { selectedGatewayId = it },
