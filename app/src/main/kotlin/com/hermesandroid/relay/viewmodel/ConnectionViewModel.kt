@@ -2440,6 +2440,22 @@ class ConnectionViewModel(application: Application) : AndroidViewModel(applicati
     val agentProfiles: StateFlow<List<Profile>> get() = profileController.agentProfiles
     val botModeState: StateFlow<BotModeState> get() = botModeController.state
 
+    /**
+     * Bot Mode's activity bridge (T1.4 / B3). The activity registry itself lives on `ChatViewModel`,
+     * which exists once per chat surface, so the one publisher that may state a **connection's**
+     * status is installed here and claimed by the active connection's own ChatViewModel: the
+     * runtime binder hands it to that VM only.
+     */
+    internal val botModeActivityBridge = BotModeActivityBridge()
+
+    /**
+     * The connection-scoped activity snapshot Bot Mode's profile list reads, or `null` while no
+     * connection is active or before its ChatViewModel has stated one. The strip inside a
+     * conversation does **not** read this: it reads its own route's `ChatViewModel` (T5.2).
+     */
+    internal val botModeActivitySnapshot: StateFlow<BotModeActivitySnapshot?>
+        get() = botModeActivityBridge.snapshot
+
     fun refreshBotMode() = botModeController.refresh()
 
     suspend fun ensureCanonicalBotChat(route: com.hermesandroid.relay.data.BotGatewayRoute): Result<BotChatTarget> =

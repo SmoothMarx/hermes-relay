@@ -212,6 +212,10 @@ internal class HermesRuntimeBinder(
                 excludeSources = connection.hiddenSources.value,
             )
         }
+        // B3: Bot Mode's status snapshot has exactly one publisher — this chat, the active
+        // connection's own ViewModel. A Bot route's own ChatViewModel is never wired here, and the
+        // bridge refuses a second claim (T1.4).
+        chat.setBotModeActivityBridge(connection.botModeActivityBridge)
         chat.setProfileMessageLoaderWithMode { profileName, sessionId, mode ->
             connection.loadProfileScopedMessages(profileName, sessionId, mode)
         }

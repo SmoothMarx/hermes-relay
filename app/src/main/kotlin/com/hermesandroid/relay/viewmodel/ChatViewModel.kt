@@ -491,6 +491,24 @@ class ChatViewModel : ViewModel() {
     private val sessionActivityGeneration = AtomicLong(0L)
     private val sessionActivityPollMutex = Mutex()
     private var sessionActivityPollJob: Job? = null
+
+    /**
+     * Whether the last completed `session.active_list` pass could attribute every live row, and
+     * whether such a pass has completed for the current scope at all (T1.4).
+     *
+     * Only a completed pass may state either: the Bot Mode snapshot is published as incomplete from
+     * a transient failure or an unsupported host, so an absent light is never presented as
+     * "nothing is running" (D2/D3).
+     */
+    private var sessionActivityAmbiguous = false
+    private var sessionActivityComplete = false
+
+    /**
+     * Bot Mode's activity bridge, installed by the runtime binder on the **main** ChatViewModel only
+     * (T1.4 / B3). Whichever ChatViewModel installs it claims it as the one publisher, so a Bot
+     * route's own ViewModel can never overwrite the active connection's snapshot.
+     */
+    private var botModeActivityBridge: BotModeActivityBridge? = null
     private var passiveGatewayHistoryRefreshJob: Job? = null
     private var passivelyObservedGatewaySessionId: String? = null
     private var passiveObservationCatchupPendingSessionId: String? = null
@@ -549,6 +567,10 @@ class ChatViewModel : ViewModel() {
         sessionActivityPollJob = null
         lastLocalActivityOwner = null
         lastLocalStreaming = false
+        // A new scope has no completed pass yet: nothing may be stated for it, and the ambiguity
+        // disclosure stays withheld until one lands (T1.4).
+        sessionActivityAmbiguous = false
+        sessionActivityComplete = false
         reduceSessionActivity(
             SessionActivityUpdate.BeginGeneration(
                 scope = scope,
@@ -561,10 +583,13 @@ class ChatViewModel : ViewModel() {
 
     private fun publishSessionActivityProjection() {
         val activeConnectionId = activityScope()?.connectionId
+        // One read of the registry for both consumers: the projection the drawer reads and the Bot
+        // Mode snapshot emitted beside it describe the same moment's states.
+        val states = sessionActivityRegistry.value.presentationStates(System.currentTimeMillis())
         _backgroundSessionActivityStates.value = if (activeConnectionId == null) {
             emptyMap()
         } else {
-            sessionActivityRegistry.value.presentationStates(System.currentTimeMillis())
+            states
                 .filterKeys { it.connectionId == activeConnectionId }
                 .mapKeys { (owner, _) ->
                     val displayProfile = owner.profile.takeUnless {
@@ -573,6 +598,15 @@ class ChatViewModel : ViewModel() {
                     "$displayProfile:${owner.storedSessionId}"
                 }
         }
+        botModeActivityBridge?.publish(
+            this,
+            botModeActivitySnapshot(
+                connectionId = activeConnectionId,
+                states = states,
+                ambiguous = sessionActivityAmbiguous,
+                complete = sessionActivityComplete,
+            ),
+        )
     }
 
     private fun publishBackgroundSessionActivity() {
@@ -2600,6 +2634,11 @@ class ChatViewModel : ViewModel() {
                             }
                         }.toMap(),
                     )
+                    // T1.4: this pass ran to completion, and it knows whether every live row was
+                    // attributable. Both are set before the reduce below publishes the projection
+                    // the Bot Mode snapshot is built from.
+                    sessionActivityAmbiguous = resolved.ambiguous
+                    sessionActivityComplete = true
                     val scopes = directory.mapTo(mutableSetOf()) {
                         SessionActivityScope.of(it.connectionId, it.profile)
                     }
@@ -2627,6 +2666,10 @@ class ChatViewModel : ViewModel() {
                 GatewayActiveSessionsResult.Unsupported,
                 is GatewayActiveSessionsResult.TransientFailure -> {
                     if (gatewayClient !== client || generation != sessionActivityGeneration.get()) return
+                    // The picture did not settle, so the snapshot stays incomplete: nothing may be
+                    // stated from it, and an absent light must not read as "nothing is running"
+                    // (T1.4 / D2).
+                    sessionActivityComplete = false
                     val currentStoredId = currentOwner?.storedSessionId
                     if (passiveObservationCatchupPendingSessionId == currentStoredId) {
                         val scheduled = currentStoredId?.let { storedId ->
@@ -4055,6 +4098,15 @@ class ChatViewModel : ViewModel() {
         lister: suspend (String?, Int, Int) -> Result<List<SessionItem>>?,
     ) {
         profileSessionPageLister = lister
+    }
+
+    /**
+     * Installs Bot Mode's activity bridge (T1.4 / B3). Wired by the runtime binder on the **main**
+     * ChatViewModel only; the install claims the bridge for this instance, and a refused claim
+     * installs nothing, so a Bot route's own ChatViewModel is never wired as a publisher.
+     */
+    internal fun setBotModeActivityBridge(bridge: BotModeActivityBridge) {
+        botModeActivityBridge = bridge.takeIf { it.claim(this) }
     }
 
     private var dashboardSignInRequiredHandler: (() -> Unit)? = null
