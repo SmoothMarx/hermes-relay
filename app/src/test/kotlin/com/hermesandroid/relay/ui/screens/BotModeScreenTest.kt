@@ -10,6 +10,7 @@ import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.performClick
 import androidx.test.core.app.ApplicationProvider
 import com.hermesandroid.relay.R
+import com.hermesandroid.relay.data.AgentDisplay
 import com.hermesandroid.relay.data.BotGroupMessage
 import com.hermesandroid.relay.data.BotGatewayRoute
 import com.hermesandroid.relay.data.BotGatewayRouteKey
@@ -386,6 +387,62 @@ class BotModeScreenTest {
         assertFalse(botModeActivityDisclosureVisible(complete = false, ambiguous = false))
     }
 
+    @Test
+    fun `a hiding policy keeps the other profiles off the rows, the chip and the caveat together`() {
+        // T2.5 / C4 — the active connection is pinned to `builder`. Every other profile's row is
+        // **absent** from the surface (not shown disabled): Lucy and Researcher are not rendered at
+        // all, the chip that would light Lucy with a state keyed to her own profile and id is absent
+        // with her, and the caveat goes too — the line speaks about running conversations on this
+        // host, and a surface the policy has narrowed must not describe what it hides. Builder is
+        // the control: the pinned profile is still listed, and still lit.
+        render(
+            lockedProfileName = "builder",
+            screenState = state(
+                bots = listOf(lucy(), builder(), researcher()),
+                groups = emptyList(),
+            ),
+            activityStates = mapOf(
+                botModeActivityKey("default", "bot-root")!! to SessionActivityState.NeedsInput,
+                botModeActivityKey("builder", "builder-bot-chat")!! to SessionActivityState.Working,
+            ),
+            activityComplete = true,
+            activityAmbiguous = true,
+        )
+
+        compose.onAllNodesWithText("Lucy").assertCountEquals(0)
+        compose.onAllNodesWithText("Researcher").assertCountEquals(0)
+        compose.onAllNodesWithText(
+            context.getString(R.string.bot_mode_activity_disclosure),
+        ).assertCountEquals(0)
+        compose.onNodeWithContentDescription("Needs input").assertDoesNotExist()
+        compose.onNodeWithText("Builder").assertExists()
+        compose.onNodeWithContentDescription("Working").assertExists()
+    }
+
+    @Test
+    fun `the light refuses a policy-hidden profile at its single keying site`() {
+        // The absence arm above cannot prove this one: a row that is never rendered shows nothing
+        // whatever the light would say about it. T2.5 gates the light itself, at
+        // `botProfileRowLight` — the keying site every render site calls — so no later surface can
+        // put a chip on a profile the policy keeps out of reach. The gate is the app's own
+        // profile-lock rule (`AgentDisplay.profileSelectionAllowed`, the body of
+        // `Connection.isProfileSelectionAllowed`): unlocked ⇒ the light (control), pinned to another
+        // profile ⇒ nothing, pinned to the row's own profile ⇒ the light comes back.
+        val states = mapOf(
+            botModeActivityKey("default", "bot-root")!! to SessionActivityState.NeedsInput,
+        )
+
+        assertEquals(SessionActivityState.NeedsInput, botProfileRowLight(lucy(), "home", states))
+        assertNull(botProfileRowLight(lucy(), "home", states, lockedProfileName = "builder"))
+        assertEquals(
+            SessionActivityState.NeedsInput,
+            botProfileRowLight(lucy(), "home", states, lockedProfileName = "default"),
+        )
+        // The policy the surface consults is the app's own rule, not a second copy of it.
+        assertTrue(AgentDisplay.profileSelectionAllowed(null, "default"))
+        assertFalse(AgentDisplay.profileSelectionAllowed("builder", "default"))
+    }
+
     private fun render(
         onOpenBot: (BotRosterEntry) -> Unit = {},
         onOpenGroup: (BotGroupRoom) -> Unit = {},
@@ -396,6 +453,7 @@ class BotModeScreenTest {
         activityStates: Map<String, SessionActivityState> = emptyMap(),
         activityComplete: Boolean = false,
         activityAmbiguous: Boolean = false,
+        lockedProfileName: String? = null,
     ) {
         compose.setContent {
             HermesRelayTheme(appThemeId = "hermes-relay", themePreference = "dark") {
@@ -415,6 +473,7 @@ class BotModeScreenTest {
                     activityStates = activityStates,
                     activityComplete = activityComplete,
                     activityAmbiguous = activityAmbiguous,
+                    lockedProfileName = lockedProfileName,
                 )
             }
         }

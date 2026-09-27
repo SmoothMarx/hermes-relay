@@ -155,6 +155,26 @@ object AgentDisplay {
     fun profileSessionKey(profileName: String?): String =
         profileRequestName(profileName) ?: SERVER_DEFAULT_PROFILE_KEY
 
+    /**
+     * Whether [profileName] may be selected — and therefore shown as a profile this
+     * connection offers — under a connection pinned to [lockedProfileName].
+     *
+     * This is the single statement of the profile-lock gate. `ProfileController`
+     * consults it for selection, and a surface that must keep a pinned profile's
+     * siblings out of reach (Supervised Mode: the affordance is absent, never shown
+     * disabled) gates its rows on the same call, so the two cannot drift apart on
+     * spelling — [profileSessionKey] is the shared normalization, which is also why
+     * a `null`/blank name matches the [SERVER_DEFAULT_PROFILE_KEY] lock target and a
+     * literal `.name` that equals the sentinel does not.
+     */
+    fun profileSelectionAllowed(
+        lockedProfileName: String?,
+        profileName: String?,
+    ): Boolean {
+        val locked = lockedProfileName ?: return true
+        return profileSessionKey(profileName) == locked
+    }
+
     fun profileContextKey(connectionId: String?, profileName: String?): String =
         "${connectionId.orEmpty()}$PROFILE_CONTEXT_SEPARATOR${profileSessionKey(profileName)}"
 

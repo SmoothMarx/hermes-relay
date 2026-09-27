@@ -74,6 +74,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import com.hermesandroid.relay.R
+import com.hermesandroid.relay.data.AgentDisplay
 import com.hermesandroid.relay.data.BotGroupMessage
 import com.hermesandroid.relay.data.BotGroupRoom
 import com.hermesandroid.relay.data.BotGatewayRoute
@@ -129,6 +130,10 @@ private sealed interface BotModeRow {
  * - **B4 (inside [profileLight]):** only `NeedsInput > Starting > Working` can describe a profile;
  *   transport states and process-level background work cannot, and an unattributable conversation
  *   can never light the row.
+ * - **T2.5 / C4:** under a hiding policy (the active connection pinned to another profile) the row
+ *   is not rendered at all, and the light refuses here too — the same
+ *   [AgentDisplay.profileSelectionAllowed] comparison the app refuses a profile *selection* with,
+ *   so no render site can light a profile the policy keeps out of reach.
  *
  * The keys are the conversations the row owns, by **both** ids the roster states for each of them
  * (the registry id and the compression-lineage tip): the projection's own key is built from
@@ -139,7 +144,11 @@ internal fun botProfileRowLight(
     bot: BotRosterEntry,
     activeConnectionId: String?,
     states: Map<String, SessionActivityState>,
+    lockedProfileName: String? = null,
 ): SessionActivityState? {
+    // C4 — a profile the policy hides states nothing. Checked on the row's own profile name, which
+    // exists whether or not the roster bound the row to a route.
+    if (!AgentDisplay.profileSelectionAllowed(lockedProfileName, bot.profile.name)) return null
     val route = bot.route ?: return null
     val active = activeConnectionId?.trim()?.takeIf { it.isNotEmpty() } ?: return null
     if (route.connectionId != active) return null
@@ -232,6 +241,9 @@ fun BotModeScreen(
     // T2.4 — the disclosure's two facts come off the same scoped snapshot the light does, so a
     // pass stated for another connection can neither light a row nor add a caveat here.
     val scopedActivitySnapshot = botModeActivitySnapshotScope(activitySnapshot, activeConnection?.id)
+    // T2.5 / C4 — Supervised Mode's profile pin, read from the same connection this surface lists.
+    // The rows, their chip and the caveat that annotates them are all gated on this one token.
+    val lockedProfileName by connectionViewModel.lockedProfileName.collectAsState()
     val scope = rememberCoroutineScope()
     val resources = LocalResources.current
     val snackbar = remember { SnackbarHostState() }
@@ -262,6 +274,7 @@ fun BotModeScreen(
         activityStates = botModeActivityStates(activitySnapshot, activeConnection?.id),
         activityComplete = scopedActivitySnapshot?.complete == true,
         activityAmbiguous = scopedActivitySnapshot?.ambiguous == true,
+        lockedProfileName = lockedProfileName,
         onBack = onBack,
         onRefresh = connectionViewModel::refreshBotMode,
         onSelectGateway = { selectedGatewayId = it },
@@ -350,6 +363,10 @@ internal fun BotModeContent(
     // so every existing fixture and call site compiles unchanged (T6.2).
     activityComplete: Boolean = false,
     activityAmbiguous: Boolean = false,
+    // T2.5 / C4 — the active connection's profile pin (`null` = unlocked). When it names a profile,
+    // every other profile's row is **absent** from this surface rather than shown disabled, and the
+    // caveat goes with them (the surface must not describe conversations it will not render).
+    lockedProfileName: String? = null,
     botAvatar: @Composable (BotRosterEntry, Dp) -> Unit = { bot, size ->
         BotFallbackAvatar(bot.displayName, size)
     },
@@ -361,9 +378,13 @@ internal fun BotModeContent(
     // T2.4 — a settled ambiguity is disclosed once; dismissing it holds for this screen until it is
     // left and reopened (nothing re-shows it while the same pass stands).
     var disclosureDismissed by rememberSaveable { mutableStateOf(false) }
+    // T2.5 / C4 — the policy gate sits on the profile list itself, which is what both presentations
+    // of it read: the rows below **and** the "Active now" strip above them are derived from this
+    // list, so neither can show a profile the connection is pinned away from. Absent, not disabled.
     val visibleBots = state.roster.bots
         .filterNot(BotRosterEntry::hidden)
         .filter { selectedGatewayId == null || it.route?.connectionId == selectedGatewayId }
+        .filter { AgentDisplay.profileSelectionAllowed(lockedProfileName, it.profile.name) }
     val visibleGroups = state.roster.groups.filter { group ->
         selectedGatewayId == null || selectedGatewayId in group.sourceConnectionIds
     }
@@ -584,11 +605,15 @@ internal fun BotModeContent(
                 HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
             }
 
-            // T2.4 — the list header's one honest caveat, directly above the rows it is about and
-            // below everything that scopes them. Shown only while the picture is settled **and**
-            // incomplete, never as a count and never as a list.
+            // T2.4 / T2.5 — the list header's one honest caveat, directly above the rows it is about
+            // and below everything that scopes them. Shown only while the picture is settled **and**
+            // incomplete, never as a count and never as a list — and never under a hiding policy: the
+            // line speaks about running conversations on this host, including ones this surface must
+            // not render, so it goes absent with the rows it annotates (C4) rather than describe what
+            // is hidden. Gating it separately from the rows is exactly how the two could disagree.
             if (
                 botModeActivityDisclosureVisible(activityComplete, activityAmbiguous) &&
+                lockedProfileName == null &&
                 !disclosureDismissed
             ) {
                 BotActivityDisclosure(onDismiss = { disclosureDismissed = true })
@@ -621,6 +646,7 @@ internal fun BotModeContent(
                                     bot = row.value,
                                     activeConnectionId = activeConnection?.id,
                                     states = activityStates,
+                                    lockedProfileName = lockedProfileName,
                                 ),
                                 nowMs = nowMs,
                             )

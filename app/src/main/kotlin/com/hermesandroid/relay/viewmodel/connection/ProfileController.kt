@@ -1319,10 +1319,13 @@ class ProfileController(
         applyProfileSelection(normalizedProfile)
     }
 
-    fun isProfileSelectionAllowed(profileName: String?): Boolean {
-        val locked = lockedProfileName.value ?: return true
-        return AgentDisplay.profileSessionKey(profileName) == locked
-    }
+    /**
+     * The connection's own profile-lock gate. The rule itself lives in
+     * [AgentDisplay.profileSelectionAllowed] so a surface that must hide a pinned
+     * profile's siblings (Supervised Mode) can gate on the identical comparison.
+     */
+    fun isProfileSelectionAllowed(profileName: String?): Boolean =
+        AgentDisplay.profileSelectionAllowed(lockedProfileName.value, profileName)
 
     fun moveProfile(profileName: String?, delta: Int) {
         val connectionId = activeConnectionId.value ?: return

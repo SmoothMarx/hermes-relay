@@ -63,6 +63,7 @@ FOCUSED_TESTS = (
     "com.hermesandroid.relay.data.BotConversationUnionTest",
     "com.hermesandroid.relay.ui.screens.BotModeScreenTest",
     "com.hermesandroid.relay.screenshots.BotModeProfileListLightScreenshotTest",
+    "com.hermesandroid.relay.data.AgentDisplayTest",
 )
 RELEASE_PREP_TESTS = (
     "com.hermesandroid.relay.screenshots.ChangelogHistoryScreenshotTest",

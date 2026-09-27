@@ -325,4 +325,36 @@ class AgentDisplayTest {
         assertNull(AgentDisplay.parseProfileContextKey("::default"))
         assertNull(AgentDisplay.parseProfileContextKey(null))
     }
+
+    @Test
+    fun profileSelectionAllowed_isOpenUntilTheConnectionIsPinned() {
+        // Unlocked: every profile stays selectable, exactly as before the lock existed.
+        assertTrue(AgentDisplay.profileSelectionAllowed(null, null))
+        assertTrue(AgentDisplay.profileSelectionAllowed(null, "mizu"))
+        assertTrue(AgentDisplay.profileSelectionAllowed(null, "default"))
+
+        // Pinned to a named profile: that profile only, compared through the shared session key so
+        // the profile *selection* gate and a surface that hides the pinned profile's siblings
+        // cannot disagree on spelling (a padded name is the same profile; the server-default
+        // sentinel is a different one).
+        assertTrue(AgentDisplay.profileSelectionAllowed("mizu", "mizu"))
+        assertTrue(AgentDisplay.profileSelectionAllowed("mizu", "  mizu  "))
+        assertFalse(AgentDisplay.profileSelectionAllowed("mizu", "default"))
+        assertFalse(AgentDisplay.profileSelectionAllowed("mizu", AgentDisplay.SERVER_DEFAULT_PROFILE_KEY))
+        assertFalse(AgentDisplay.profileSelectionAllowed("mizu", null))
+        assertFalse(AgentDisplay.profileSelectionAllowed("mizu", "  "))
+
+        // Pinned to Server default: the null/blank request identity IS that target, while a literal
+        // profile named `default` is a different profile and stays out of reach.
+        val serverDefault = AgentDisplay.SERVER_DEFAULT_PROFILE_KEY
+        assertTrue(AgentDisplay.profileSelectionAllowed(serverDefault, null))
+        assertTrue(AgentDisplay.profileSelectionAllowed(serverDefault, "  "))
+        assertTrue(AgentDisplay.profileSelectionAllowed(serverDefault, serverDefault))
+        assertFalse(AgentDisplay.profileSelectionAllowed(serverDefault, "default"))
+        assertFalse(AgentDisplay.profileSelectionAllowed(serverDefault, "mizu"))
+
+        // The comparison is trim-normalized but **not** case-folded, which fails closed: a profile
+        // stated with another case is refused (hidden), never silently admitted as the pinned one.
+        assertFalse(AgentDisplay.profileSelectionAllowed("mizu", "Mizu"))
+    }
 }
