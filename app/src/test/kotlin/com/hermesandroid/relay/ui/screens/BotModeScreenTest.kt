@@ -24,6 +24,7 @@ import com.hermesandroid.relay.data.SessionActivityOwner
 import com.hermesandroid.relay.data.SessionActivityState
 import com.hermesandroid.relay.ui.components.botModeActivityKey
 import com.hermesandroid.relay.ui.theme.HermesRelayTheme
+import com.hermesandroid.relay.viewmodel.BotModeActivitySnapshot
 import com.hermesandroid.relay.viewmodel.botModeActivitySnapshot
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -363,6 +364,21 @@ class BotModeScreenTest {
         assertNull(botModeActivitySnapshotScope(snapshot, null))
         assertNull(botModeActivitySnapshotScope(snapshot, "  "))
         assertNull(botModeActivitySnapshotScope(null, "home"))
+        // The guard normalizes before it compares, so a snapshot whose own connection id is the same
+        // blank spelling is refused rather than matched — delete that normalization and this
+        // assertion fails (the three above cannot tell: their snapshot says "home", which no blank
+        // key equals). The builder never produces such a snapshot; the arm pins the guard itself.
+        assertNull(
+            botModeActivitySnapshotScope(
+                BotModeActivitySnapshot(
+                    connectionId = "  ",
+                    states = emptyMap(),
+                    ambiguous = true,
+                    complete = true,
+                ),
+                "  ",
+            ),
+        )
 
         assertTrue(botModeActivityDisclosureVisible(complete = true, ambiguous = true))
         assertFalse(botModeActivityDisclosureVisible(complete = true, ambiguous = false))
