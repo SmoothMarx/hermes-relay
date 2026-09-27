@@ -62,6 +62,18 @@ import java.util.concurrent.TimeUnit
  *    no directory owner at all. Unresolved rows contribute **no** key: the app
  *    never invents an owner, so no badge/light can be lit for them.
  *
+ * Those are the three documented assignment paths — `docs/spec.md`
+ * ("Authoritative session activity") and `docs/upstream-surface-matrix.md`
+ * (the `session.active_list` row): exact foreground/detached ownership the
+ * client already holds, explicit `profile` metadata **if a future upstream
+ * sends it**, or a unique match to the currently selected passive session in the
+ * connection directory. Today's upstream rows normally carry **no** profile
+ * metadata (`GatewayActiveSession.profile`: "Future-compatible only; null for
+ * the current upstream contract"), so on today's contract the measured split is
+ * the attached conversation attributed and **every** sibling unresolved; the
+ * profile-carrying sibling arm exercises the documented future path, not
+ * something a sibling tab can show today.
+ *
  * A snapshot containing an unresolved row is also incomplete, and an incomplete
  * snapshot must not settle (remove) rows that *were* unambiguously owned before
  * — otherwise one unattributable row would silently blank whole tabs.
@@ -154,8 +166,9 @@ class SessionActivityAttributionSplitTest {
             // client-side owner and that owner is the current one, so the
             // resolver's current-owner fallback attributes it.
             activeRow(runtimeId = "live-attached", storedSessionId = ATTACHED, status = "working"),
-            // A sibling that does carry its `profile`: exactly one directory
-            // owner for that stored id, so it is attributed.
+            // A sibling that does carry its `profile` (the documented
+            // future-upstream shape; today's rows normally omit it): exactly one
+            // directory owner for that stored id, so it is attributed.
             activeRow(
                 runtimeId = "live-sibling",
                 storedSessionId = SIBLING,
