@@ -97,5 +97,137 @@ data class BotConversation(
             messageCount = row.messageCount,
             lineageSessionIds = row.lineageIds,
         )
+
+        /**
+         * One conversation from one roster session summary — `canonical_session` of
+         * `profiles.list(include_sessions: true)` (`data/BotModeData.kt:27-49`).
+         *
+         * This is the source that can see a row the REST directory cannot: every profile store's
+         * canonical "Bot Chat" row is `hidden = 1` while the directory read filters `hidden = 0`
+         * and exposes no blanket `include_hidden`, so a directory-only list never contains the
+         * conversation the Bot Mode route opens. The summary is already held and costs no request.
+         *
+         * The two ids use the gateway's own namespace, the mirror image of a directory row's: the
+         * durable registry row is `id` and the compression-lineage **tip** is `resolved_id`
+         * (defaulting to `id` when the host states no tip), so [storedSessionId] — the badge and
+         * selection key — is `id`, and [resolvedSessionId] — the id that is opened — is
+         * `resolvedId`.
+         *
+         * Everything this row says comes from the summary's own statement about *this*
+         * conversation; nothing is taken from the profile-level maxima, which mix in other
+         * sessions ([BotRosterEntry.latestActivityAtMs] is `max(canonical, lastSession)`,
+         * `data/BotModeData.kt:50-62`), and nothing is invented:
+         *
+         * - [activityTimestamp] is the canonical summary's own last activity and stays `null` when
+         *   it states none — never epoch zero, the rule the directory mapping follows as well.
+         * - [title] follows the directory mapping's precedence (stated title, else the
+         *   first-message preview, else empty); a roster row is never renamed locally.
+         * - [messageCount] stays `null`: this path cannot tell whether the summary's count spans
+         *   the compression chain, and a number the surface cannot vouch for is exactly what the
+         *   count must not become. The directory row supplies the count whenever it lists the
+         *   conversation, and the union prefers it.
+         * - `pinned`, `archived` and the lineage keep their defaults: a summary states no pin flag,
+         *   no archive flag and no chain, so the row claims no emphasis, no archive state and no
+         *   chain. It is listed in the Open view (owner D1's default read) because no source states
+         *   otherwise, and the directory row — which does carry those fields — wins the union
+         *   whenever it lists the same conversation.
+         */
+        fun fromRosterSummary(
+            connectionId: String,
+            profileName: String,
+            summary: BotSessionSummary,
+        ): BotConversation = BotConversation(
+            connectionId = connectionId,
+            profileName = profileName,
+            storedSessionId = summary.id,
+            resolvedSessionId = summary.resolvedId,
+            title = summary.title.takeIf(String::isNotBlank)
+                ?: summary.preview.takeIf(String::isNotBlank).orEmpty(),
+            activityTimestamp = summary.lastActiveAtMs.takeIf { it > 0L },
+        )
     }
 }
+
+/**
+ * The conversation set one Bot route lists: the route's own roster canonical summary **∪** the
+ * directory rows it read, de-duplicated by id (T1.7).
+ *
+ * Why the union exists (measured, read-only): the profile's canonical "Bot Chat" row is
+ * `hidden = 1`, the session-list handler behind `DashboardApiClient.listSessions` filters
+ * `hidden = 0` and exposes no blanket `include_hidden`, so a directory-only list shows the
+ * profile's other sessions and **not** the conversation the surface was opened from. The roster
+ * summary is already held (`profiles.list(include_sessions: true)`), so including it adds no
+ * request and no server-side change.
+ *
+ * **Ownership.** Every entry is tagged with [BotGatewayRoute.connectionId] /
+ * [BotGatewayRoute.profileName], and a roster entry is admitted only when its own route names that
+ * connection and that profile — the fleet roster merges connections that carry the same profile
+ * name (`BotModeController.aggregateForTest`), so matching on the profile name alone would leak
+ * another connection's conversation (ADR 67: identity is the `(connectionId, profile)` pair). An
+ * entry with no route has no owner to attribute and is skipped rather than guessed; a profile name
+ * is compared as the route states it (trimmed) and never case-folded, because two profiles on one
+ * host may differ only in case. A row that names no id at all is skipped too: it can be neither
+ * opened nor keyed.
+ *
+ * **De-duplication is by id**, and "an id" is every id upstream uses for that one conversation —
+ * the durable registry id, the compression-lineage tip, and the chain a directory row carries —
+ * not one spelling of it. The two sources number the same conversation differently (the roster
+ * calls the registry row `id` and the tip `resolved_id`; a directory row calls the tip `id` and the
+ * registry row `_lineage_root_id`), and a compression landing between the two reads moves the tip,
+ * so matching on a single id would list the entry conversation twice or drop the row the route
+ * opened. The **directory row wins** the merge: it is the server's own row, it carries the count,
+ * the archive flag and the chain, and its `id` is what opens the conversation.
+ *
+ * **Ordering** is the drawer's default row ordering (`SessionDrawerOrdering.Updated` through
+ * `filterAndSortSessionRows`, `ui/components/SessionDrawerPolicy.kt:139-151`): pinned first, then
+ * most recent activity, then title. An unstated timestamp sorts as the oldest; it is never
+ * promoted to "now".
+ */
+internal fun botConversationUnion(
+    route: BotGatewayRoute,
+    roster: BotModeRoster?,
+    directoryRows: List<SessionItem>,
+): List<BotConversation> {
+    val listed = directoryRows
+        .map { row -> BotConversation.fromDirectoryRow(route.connectionId, route.profileName, row) }
+        .filter { it.storedSessionId.isNotBlank() }
+    val canonical = roster?.bots
+        ?.firstOrNull { entry ->
+            val entryRoute = entry.route
+            entryRoute != null &&
+                entryRoute.connectionId == route.connectionId &&
+                entryRoute.profileName.trim() == route.profileName.trim()
+        }
+        ?.canonicalSession
+        ?.takeIf { it.id.isNotBlank() }
+        ?.let { summary ->
+            BotConversation.fromRosterSummary(route.connectionId, route.profileName, summary)
+        }
+    val merged = listed.toMutableList()
+    if (canonical != null && merged.none { it.sharesIdentityWith(canonical) }) {
+        merged += canonical
+    }
+    return merged.sortedWith(botConversationOrder)
+}
+
+/**
+ * Whether two entries name the same conversation: the same owner — the `(connectionId, profile)`
+ * pair, not a profile name alone — and at least one shared id among [identityIds]. Never true for
+ * two different owners, and never based on a title or a preview, which two conversations may share.
+ */
+internal fun BotConversation.sharesIdentityWith(other: BotConversation): Boolean =
+    connectionId == other.connectionId &&
+        profileKey() == other.profileKey() &&
+        identityIds().any(other.identityIds()::contains)
+
+/** Every id upstream uses for this conversation: the registry id, the open tip, and the chain. */
+private fun BotConversation.identityIds(): Set<String> =
+    (lineageSessionIds.orEmpty() + listOf(storedSessionId, resolvedSessionId))
+        .filter(String::isNotBlank)
+        .toSet()
+
+/** The drawer's default row ordering, over conversations. */
+private val botConversationOrder: Comparator<BotConversation> =
+    compareByDescending<BotConversation> { it.pinned }
+        .thenByDescending { it.activityTimestamp ?: 0L }
+        .thenBy { it.title.lowercase(Locale.ROOT) }
