@@ -264,6 +264,16 @@ data class SessionItem(
     val cwd: String? = null,
     @SerialName("git_branch") val gitBranch: String? = null,
     @SerialName("git_repo_root") val gitRepoRoot: String? = null,
+    /**
+     * Compression-lineage fields upstream projects onto a row whose `id` is a chain **tip**
+     * (`_project_compression_tips`): the durable registry row is `_lineage_root_id`, the whole
+     * chain is `_lineage_ids` (root first) and `continuation_kind` says why the row was projected
+     * (`compression`). All three are absent on an uncompressed row, which is why the model keeps
+     * them nullable and decodes the rest of the window unchanged.
+     */
+    @SerialName("_lineage_root_id") val lineageRootId: String? = null,
+    @SerialName("_lineage_ids") val lineageIds: List<String>? = null,
+    @SerialName("continuation_kind") val continuationKind: String? = null,
     /** Best-effort association from the Dashboard's read-only transcript scan. */
     val pullRequest: SessionPullRequest? = null,
 ) {
