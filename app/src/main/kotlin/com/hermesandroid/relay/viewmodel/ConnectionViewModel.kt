@@ -142,6 +142,9 @@ import com.hermesandroid.relay.network.relay.models.Envelope
 import com.hermesandroid.relay.util.AppForegroundTracker
 import com.hermesandroid.relay.util.MediaCacheWriter
 import com.hermesandroid.relay.viewmodel.connection.PairingController
+import com.hermesandroid.relay.viewmodel.connection.BotConversationDirectory
+import com.hermesandroid.relay.viewmodel.connection.BOT_CONVERSATION_ARCHIVED_EXCLUDE
+import com.hermesandroid.relay.viewmodel.connection.BOT_CONVERSATION_DIRECTORY_WINDOW_LIMIT
 import com.hermesandroid.relay.viewmodel.connection.BotModeController
 import com.hermesandroid.relay.viewmodel.connection.ProfileController
 import com.hermesandroid.relay.viewmodel.connection.UpstreamTransportController
@@ -2457,6 +2460,34 @@ class ConnectionViewModel(application: Application) : AndroidViewModel(applicati
     fun botDashboardClient(
         route: com.hermesandroid.relay.data.BotGatewayRoute,
     ): Result<DashboardApiClient> = botModeController.dashboardClient(route)
+
+    /**
+     * Read [route]'s OWN profile conversation directory through [client] — that route's own
+     * Dashboard client (the caller owns its lifetime, as the Bot Chat route's `DisposableEffect`
+     * does). The Bot Mode surfaces must never resolve the active connection (ADR 67), so this read
+     * is route-scoped by construction and **fails closed**: a `profileName` that is not the route's
+     * own reads nothing, returns `null` and logs — never an unscoped list, and never an empty
+     * profile (owner D1). `archived` defaults to the Open view (`"exclude"`); the Archived view
+     * passes `"include"`. `excludeSources` is this connection's hidden-source set, so the surface
+     * lists what the drawer lists; the window and the 100-row pages are bounded by the reader.
+     */
+    suspend fun readBotConversationDirectory(
+        route: com.hermesandroid.relay.data.BotGatewayRoute,
+        client: DashboardApiClient,
+        profileName: String? = route.profileName,
+        limit: Int = BOT_CONVERSATION_DIRECTORY_WINDOW_LIMIT,
+        offset: Int = 0,
+        archived: String = BOT_CONVERSATION_ARCHIVED_EXCLUDE,
+    ): Result<List<SessionItem>>? = BotConversationDirectory(
+        route = route,
+        excludeSources = hiddenSources.value,
+    ).read(
+        client = client,
+        profileName = profileName,
+        limit = limit,
+        offset = offset,
+        archived = archived,
+    )
 
     /**
      * Session namespace after resolving the Server-default UI sentinel through
