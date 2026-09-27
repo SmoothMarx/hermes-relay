@@ -5,45 +5,39 @@
 <style>
   * { box-sizing:border-box; }
   body { margin:0; background:transparent; color:var(--foreground); font-family:inherit; font-size:13px; }
-  .grp { margin-bottom:18px; }
-  .cap { font-size:11px; letter-spacing:.04em; text-transform:uppercase; color:var(--muted-foreground); margin:0 0 6px 2px; }
-  .wrap { display:flex; gap:16px; align-items:flex-start; flex-wrap:wrap; }
-  .col { width:250px; }
-  .col.wide { width:322px; }
+  .wrap { display:flex; gap:18px; align-items:flex-start; }
+  .col { width:246px; }
+  .cap { font-size:11px; letter-spacing:.04em; text-transform:uppercase; color:var(--muted-foreground); margin:0 0 6px 0; }
+  .sub { font-size:11.5px; color:var(--muted-foreground); margin:6px 0 0 0; line-height:1.45; }
   .phone { border:1px solid var(--border); border-radius:16px; background:var(--card); overflow:hidden; }
   .bar { display:flex; align-items:center; gap:8px; padding:9px 11px; border-bottom:1px solid var(--border); }
-  .bar h3 { margin:0; font-size:12.5px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  .bar .sub { font-size:10.5px; color:var(--muted-foreground); }
+  .bar h3 { margin:0; font-size:12.5px; font-weight:600; }
+  .bar .right { font-size:10.5px; color:var(--muted-foreground); }
   .grow { flex:1; }
+  .plus { flex:0 0 auto; width:24px; height:24px; border-radius:7px; border:1px solid var(--accent); display:flex; align-items:center; justify-content:center; font-size:15px; line-height:1; }
   .rows { padding:3px 0; }
   .row { display:flex; gap:8px; padding:8px 11px; align-items:flex-start; }
   .row + .row { border-top:1px solid var(--border); }
-  .av { width:30px; height:30px; border-radius:50%; border:1px solid var(--border); display:flex; align-items:center; justify-content:center; font-size:11.5px; font-weight:600; flex:0 0 30px; }
+  .av { width:28px; height:28px; border-radius:50%; border:1px solid var(--border); display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:600; flex:0 0 28px; }
   .mid { flex:1; min-width:0; }
-  .nm { font-weight:600; font-size:12px; display:flex; align-items:center; gap:5px; }
-  .meta { font-size:10.5px; color:var(--muted-foreground); margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  .prev { font-size:10.5px; color:var(--muted-foreground); margin-top:3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .nm { font-weight:600; font-size:12px; display:flex; align-items:center; gap:5px; flex-wrap:wrap; }
+  .meta { font-size:10.5px; color:var(--muted-foreground); margin-top:2px; }
   .chip { font-size:9.5px; padding:2px 6px; border-radius:999px; border:1px solid var(--border); color:var(--muted-foreground); white-space:nowrap; }
   .chip.pending { border-color:#c98a2b; color:#c98a2b; }
   .chip.working { border-color:#4f8ef7; color:#4f8ef7; }
-  .tabs { display:flex; gap:5px; padding:7px 9px; border-bottom:1px solid var(--border); overflow-x:auto; }
+  .tabs { display:flex; gap:5px; padding:7px 9px; border-bottom:1px solid var(--border); }
   .tab { display:flex; align-items:center; gap:5px; font-size:10.5px; padding:4px 8px; border:1px solid var(--border); border-radius:999px; white-space:nowrap; color:var(--muted-foreground); }
   .tab.sel { color:var(--foreground); border-color:var(--accent); }
   .dot { width:6px; height:6px; border-radius:50%; display:inline-block; flex:0 0 6px; }
   .dot.pending { background:#c98a2b; } .dot.working { background:#4f8ef7; } .dot.none { background:transparent; border:1px solid var(--border); }
-  .split { display:flex; }
-  .rail { width:88px; flex:0 0 88px; border-right:1px solid var(--border); padding:6px 0; }
-  .rail .it { padding:6px 7px; font-size:10px; color:var(--muted-foreground); display:flex; gap:4px; align-items:flex-start; line-height:1.25; }
-  .rail .it.sel { color:var(--foreground); background:var(--card); border-left:2px solid var(--accent); }
-  .pane { flex:1; min-width:0; }
-  .msgs { padding:9px 11px; display:flex; flex-direction:column; gap:7px; min-height:150px; }
-  .b { max-width:88%; padding:6px 8px; border-radius:10px; border:1px solid var(--border); font-size:11px; line-height:1.35; }
+  .msgs { padding:9px 11px; display:flex; flex-direction:column; gap:7px; }
+  .b { max-width:90%; padding:6px 8px; border-radius:10px; border:1px solid var(--border); font-size:11px; line-height:1.35; }
   .b.me { align-self:flex-end; }
-  .b.sys { align-self:center; font-size:10px; color:var(--muted-foreground); border-style:dashed; }
   .composer { border-top:1px solid var(--border); padding:8px 11px; font-size:10.5px; color:var(--muted-foreground); }
-  .note { font-size:10.5px; color:var(--muted-foreground); margin-top:7px; line-height:1.45; }
-  .verdict { border:1px solid var(--border); border-radius:12px; padding:11px 13px; }
-  .verdict h4 { margin:0 0 6px; font-size:12px; }
+  .flag { margin-top:7px; font-size:11px; line-height:1.4; border-left:2px solid var(--accent); padding-left:7px; }
+  .box { border:1px solid var(--border); border-radius:12px; padding:11px 13px; margin-top:16px; max-width:790px; }
+  .box h4 { margin:0 0 7px; font-size:12px; }
+  .box ol { margin:0; padding-left:18px; font-size:11.5px; line-height:1.55; }
   .btns { margin-top:11px; display:flex; gap:8px; flex-wrap:wrap; }
   button { font:inherit; font-size:11.5px; padding:6px 11px; border-radius:8px; border:1px solid var(--border); background:transparent; color:var(--foreground); cursor:pointer; }
   button.pri { border-color:var(--accent); }
@@ -51,104 +45,80 @@
 </head>
 <body>
 
-<div class="grp">
-  <p class="cap">Unchanged from v1 — decisions 1–3 applied</p>
-  <div class="wrap">
-    <div class="col">
-      <div class="phone">
-        <div class="bar"><h3>Conversations</h3><span class="grow"></span><span class="sub">3 open</span></div>
-        <div class="rows">
-          <div class="row"><div class="av">W</div><div class="mid">
-            <div class="nm">work <span class="chip pending">Pending you</span></div>
-            <div class="meta">Home PC · 2 min ago</div><div class="prev">Approve: run the migration script?</div></div></div>
-          <div class="row"><div class="av">D</div><div class="mid">
-            <div class="nm">default <span class="chip working">Working</span></div>
-            <div class="meta">Home PC · now · 2 conversations</div><div class="prev">Reading the repository index…</div></div></div>
-          <div class="row"><div class="av">Z</div><div class="mid">
-            <div class="nm">zf-machine</div>
-            <div class="meta">Workshop PC · 6 h ago</div><div class="prev">Rebuild verified · 13 passed</div></div></div>
-        </div>
+<p class="cap">The three screens, in the order you tap them</p>
+<div class="wrap">
+
+  <div class="col">
+    <p class="cap">1 · Profiles</p>
+    <div class="phone">
+      <div class="bar"><h3>Conversations</h3><span class="grow"></span><span class="right">3 open</span></div>
+      <div class="rows">
+        <div class="row"><div class="av">W</div><div class="mid">
+          <div class="nm">work <span class="chip pending">Pending you</span></div>
+          <div class="meta">Home PC · 2 min ago</div></div></div>
+        <div class="row"><div class="av">D</div><div class="mid">
+          <div class="nm">default <span class="chip working">Working</span></div>
+          <div class="meta">Home PC · now · 2 conversations</div></div></div>
+        <div class="row"><div class="av">Z</div><div class="mid">
+          <div class="nm">zf-machine</div>
+          <div class="meta">Workshop PC · 6 h ago</div></div></div>
       </div>
-      <div class="note">No chip = nothing running we can see (not “done”). Other machine = recency only.</div>
     </div>
-    <div class="col">
-      <div class="phone">
-        <div class="bar"><h3>work</h3><span class="grow"></span><span class="sub">Home PC</span></div>
-        <div class="tabs"><span class="tab sel">Open</span><span class="tab">Archived</span></div>
-        <div class="rows">
-          <div class="row"><div class="mid"><div class="nm">Migration cleanup <span class="chip pending">Pending you</span></div>
-            <div class="meta">18 messages · 2 min ago</div></div></div>
-          <div class="row"><div class="mid"><div class="nm">Android build triage <span class="chip working">Working</span></div>
-            <div class="meta">64 messages · now</div></div></div>
-          <div class="row"><div class="mid"><div class="nm">Untitled</div><div class="meta">3 messages · yesterday</div></div></div>
-          <div class="row"><div class="mid"><div class="nm" style="color:var(--muted-foreground)">＋ New conversation</div></div></div>
-        </div>
-      </div>
-      <div class="note">“Open” = not archived. Archive is the close action (decision 1).</div>
-    </div>
+    <p class="sub"><b>Where you land.</b> Every profile you can reach, with a light that reacts. Tap one →</p>
   </div>
+
+  <div class="col">
+    <p class="cap">2 · That profile’s conversations</p>
+    <div class="phone">
+      <div class="bar"><h3>work</h3><span class="grow"></span><span class="right">Home PC</span><span class="plus">＋</span></div>
+      <div class="tabs"><span class="tab sel">Open</span><span class="tab">Archived</span></div>
+      <div class="rows">
+        <div class="row"><div class="mid"><div class="nm">Migration cleanup <span class="chip pending">Pending you</span></div>
+          <div class="meta">18 messages · 2 min ago</div></div></div>
+        <div class="row"><div class="mid"><div class="nm">Android build triage <span class="chip working">Working</span></div>
+          <div class="meta">64 messages · now</div></div></div>
+        <div class="row"><div class="mid"><div class="nm">Untitled</div><div class="meta">3 messages · yesterday</div></div></div>
+      </div>
+    </div>
+    <p class="flag">← <b>the ＋ you asked for.</b> Title bar, top right — the same place this app already puts its action icons.</p>
+  </div>
+
+  <div class="col">
+    <p class="cap">3 · The conversation</p>
+    <div class="phone">
+      <div class="bar"><h3>Migration cleanup</h3><span class="grow"></span><span class="chip pending">Pending you</span></div>
+      <div class="tabs">
+        <span class="tab sel"><span class="dot pending"></span>Migration cleanup</span>
+        <span class="tab"><span class="dot working"></span>Android build…</span>
+        <span class="tab"><span class="dot none"></span>Untitled</span>
+      </div>
+      <div class="msgs">
+        <div class="b me">Clean up the migration output and tell me what changed</div>
+        <div class="b">Cleaned 3 files. Before approving the delete of <b>old_schema.sql</b>, confirm the backup ran.</div>
+      </div>
+      <div class="composer">Message work…</div>
+    </div>
+    <p class="sub"><b>The tabs on top</b> (your choice A). Swipe the strip sideways to swap conversations in place; Back returns to screen 2.</p>
+  </div>
+
 </div>
 
-<div class="grp">
-  <p class="cap">The only open question — same conversation, two ways to swap</p>
-  <div class="wrap">
-
-    <div class="col">
-      <p class="cap" style="text-transform:none;font-size:11px">A · Tabs on top</p>
-      <div class="phone">
-        <div class="bar"><h3>Migration cleanup</h3><span class="grow"></span><span class="chip pending">Pending you</span></div>
-        <div class="tabs">
-          <span class="tab sel"><span class="dot pending"></span>Migration cleanup</span>
-          <span class="tab"><span class="dot working"></span>Android build…</span>
-          <span class="tab"><span class="dot none"></span>Untitled</span>
-        </div>
-        <div class="msgs">
-          <div class="b me">Clean up the migration output and tell me what changed</div>
-          <div class="b">Cleaned 3 files. Before approving the delete of <b>old_schema.sql</b>, confirm the backup ran.</div>
-          <div class="b sys">Waiting for your approval</div>
-        </div>
-        <div class="composer">Message work…</div>
-      </div>
-      <div class="note">A strip of conversations across the top, swiped sideways. Only the current one is highlighted. Full width for your messages. <b>This is the pattern the app already uses elsewhere.</b></div>
-    </div>
-
-    <div class="col wide">
-      <p class="cap" style="text-transform:none;font-size:11px">B · Side rail (list down the left edge)</p>
-      <div class="phone">
-        <div class="bar"><h3>Migration cleanup</h3><span class="grow"></span><span class="chip pending">Pending you</span></div>
-        <div class="split">
-          <div class="rail">
-            <div class="it sel"><span class="dot pending"></span>Migration cleanup</div>
-            <div class="it"><span class="dot working"></span>Android build triage</div>
-            <div class="it"><span class="dot none"></span>Untitled</div>
-          </div>
-          <div class="pane">
-            <div class="msgs">
-              <div class="b me">Clean up the migration output</div>
-              <div class="b">Cleaned 3 files. Before approving the delete of <b>old_schema.sql</b>, confirm the backup ran.</div>
-              <div class="b sys">Waiting for your approval</div>
-            </div>
-            <div class="composer">Message work…</div>
-          </div>
-        </div>
-      </div>
-      <div class="note">All conversations always visible down the side — like Telegram on desktop or Slack’s channel list. Notice it <b>eats width from your messages</b> at phone size. <b>No screen in the app does this today</b>, and ADR 12 warns against adding navigation lanes.</div>
-    </div>
-
-  </div>
-</div>
-
-<div class="verdict">
-  <h4>My recommendation</h4>
-  <div style="font-size:11.5px;line-height:1.5">
-    <b>A (tabs on top) for the phone</b>, and keep screen 2 — the profile’s conversation list — as the “see everything at once” view you reach with Back. B is the better shape on a tablet or in landscape, where there is width to spare; it is not worth being the first place in this app to introduce a permanent side panel, and it costs noticeably more work (new layout type, new tests, more risk of breaking the existing chat layout).
-    <br><br>
-    If you want the always-visible list <i>and</i> the phone, that is a later enhancement: build A now, add B behind a wide-screen breakpoint once A is in your hands.
-  </div>
+<div class="box">
+  <h4>What each screen is for — in one line each</h4>
+  <ol>
+    <li><b>Screen 1</b> — “which profile do I want?” (every profile, with its light).</li>
+    <li><b>Screen 2</b> — “what have I got going with this profile?” (its open conversations; archived behind a toggle) — and the ＋ lives here.</li>
+    <li><b>Screen 3</b> — “let me read and reply” (the messages, with the tab strip across the top).</li>
+  </ol>
+  <p style="font-size:11.5px;line-height:1.55;margin:9px 0 0">
+    The ＋ starts with the profile you are already looking at, so it needs no “who?” step — it just opens a fresh conversation as a new tab on screen 3.
+    The glyph can be a bare ＋, but it still needs a spoken label (“New conversation”) in <b>all 7 languages</b> the app ships, and a Supervised-Mode rule.
+    That is why it is real work and not just an icon — and it is why I am folding it into the plan now rather than bolting it on at the end.
+  </p>
   <div class="btns">
-    <button class="pri" data-hermes-send="Go with option A (tabs on top). Turn the survey into the phased implementation plan.">Go with A — plan it</button>
-    <button data-hermes-send="I want option B (side rail). Explain what extra work it needs before planning.">I want B</button>
-    <button data-hermes-send="Build A now for the phone, and add B later for tablets/landscape. Plan it in that order.">A now, B later</button>
+    <button class="pri" data-hermes-send="The ＋ placement on screen 2 is right. Fold it into the plan.">＋ on screen 2 is right — fold it in</button>
+    <button data-hermes-send="Put the ＋ on screen 1 instead (the profile list), so I can start a new conversation with any profile.">Put it on screen 1 instead</button>
+    <button data-hermes-send="Also add a ＋ to screen 1, keeping the one on screen 2.">Both screens</button>
   </div>
 </div>
 
