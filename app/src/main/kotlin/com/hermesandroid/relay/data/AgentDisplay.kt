@@ -163,9 +163,10 @@ object AgentDisplay {
      * consults it for selection, and a surface that must keep a pinned profile's
      * siblings out of reach (Supervised Mode: the affordance is absent, never shown
      * disabled) gates its rows on the same call, so the two cannot drift apart on
-     * spelling — [profileSessionKey] is the shared normalization, which is also why
-     * a `null`/blank name matches the [SERVER_DEFAULT_PROFILE_KEY] lock target and a
-     * literal `.name` that equals the sentinel does not.
+     * spelling: [profileSessionKey] is the shared normalization, a `null` or blank
+     * name is the [SERVER_DEFAULT_PROFILE_KEY] target, and a name that spells that
+     * sentinel is the same absent identity (it matches a Server-default lock and no
+     * named one), exactly as [profileRequestName] already treats it.
      */
     fun profileSelectionAllowed(
         lockedProfileName: String?,
