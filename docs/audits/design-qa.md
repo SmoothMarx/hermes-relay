@@ -313,3 +313,60 @@ final result: blocked
 - P3: physical-device review can confirm whether the horizontal Add-card peek is discoverable at the user's actual font and display scales.
 
 final result: passed
+
+# Android Bot Mode messenger — P0 probes
+
+Dated 2026-09-27. The P0 phase answers three questions before any messenger surface is built and leaves no
+shipped code. Answers are recorded here as measured facts.
+
+## T0.1 — conversation id namespace: stored id vs compression-lineage tip
+
+**Question.** Does `GET /api/sessions` return the stored session id for every row, or can a row carry a
+compression-lineage tip?
+
+**Answer.** The directory row `id` **is the lineage tip**, not the stored id. The stored id is still on the
+row, but only as `_lineage_root_id`, next to the whole chain in `_lineage_ids` and
+`continuation_kind = "compression"`.
+
+**Mechanism.** `hermes_cli/web_routers/sessions.py::get_sessions` lists through
+`SessionDB.list_sessions_rich(...)`; that call's default `project_compression_tips=True` replaces the surfaced
+fields of a compression-ended row — `id` and `title` included — with its live tip
+(`hermes_state_sessions.py::_project_compression_tips`). The canonical Bot Chat path uses the other namespace:
+`session.list` with a `title` returns the registry row as `id` and the tip separately as `resolved_id`
+(`tui_gateway/methods_session.py::_session_list_by_title`), which the app carries as
+`BotChatTarget(storedSessionId, resolvedSessionId)`.
+
+**Measurement.** Read-only listing against a live host's session store, through the same function and the same
+scope the REST handler passes (`archived=exclude`, `order=recent`, `min_messages=1`, `compact_rows=True`,
+`include_pinned=True`); the handler's own auto-archive precondition was deliberately not exercised because it
+is a write on a GET path. A 100-row window returned 102 rows, 41 of them carrying
+`continuation_kind = "compression"`. Across those 41 rows: `id` equalled the chain tip (41/41),
+`_lineage_root_id` equalled the chain root (41/41), `id` differed from `_lineage_root_id` (41/41), and the root
+row was still present in the store (41/41). Observed chain lengths: 2, 3, 4, 6, 7, 8, 9, 14, 15, 34, 44, 75
+and 101. One sampled row had `id` equal to its chain tip, `_lineage_root_id` equal to its chain root, and
+`get_compression_tip(root) == id`.
+
+**Consequence for the plan.** The sequencing branch condition in the plan resolves to the tip-equality branch:
+the conversation tab's selection matches the directory `id` (a tip) first, and the stored id is only a
+secondary badge key. The surface can obtain the stored id only by decoding `_lineage_root_id`: the client
+decodes with `ignoreUnknownKeys = true` and `SessionItem` carries no field for it, so today the stored id is
+not represented on the surface at all.
+
+## T0.1 — adjacent measurement: the directory read cannot see a hidden conversation
+
+Every profile store examined carries its canonical "Bot Chat" row with `hidden = 1`. The session-list handler
+filters `s.hidden = 0` and exposes no `include_hidden` parameter at all, and the API server's session listing
+honours `include_hidden` only when a `title` filter is present — a blanket hidden listing is deliberately kept
+off that surface. The directory read the messenger surface would perform therefore never contains the
+conversation the Bot Mode route opens. Measured across three profile stores: the canonical row
+was absent from the default window in all three, and appeared only in a direct listing with `include_hidden`
+enabled (one of those also fails the client's hard-coded `min_messages=1`, because its row holds no messages).
+
+Recorded as a measurement, not a change of shape: a decision is still needed on how the conversation sub-menu
+and the tab strip obtain the row of a hidden canonical conversation.
+
+## T0.2, T0.3 — pending
+
+Not answered in this pass.
+
+final result: pending
