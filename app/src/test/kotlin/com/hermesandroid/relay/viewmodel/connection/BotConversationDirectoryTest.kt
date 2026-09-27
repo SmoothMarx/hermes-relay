@@ -147,7 +147,7 @@ class BotConversationDirectoryTest {
     fun windowIsBoundedToTwoHundredRowsOverBoundedPages() = runBlocking {
         assertEquals(1, botConversationWindowLimit(0))
         assertEquals(1, botConversationWindowLimit(-5))
-        assertEquals(BOT_CONVERSATION_DIRECTORY_WINDOW_LIMIT, botConversationWindowLimit(37))
+        assertEquals(37, botConversationWindowLimit(37))
         assertEquals(
             BOT_CONVERSATION_DIRECTORY_WINDOW_LIMIT,
             botConversationWindowLimit(BOT_CONVERSATION_DIRECTORY_WINDOW_LIMIT),
