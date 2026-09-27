@@ -114,11 +114,16 @@ private sealed interface BotModeRow {
  * The state one profile row may be lit by, or `null` when nothing may be stated (the row then
  * shows its recency only).
  *
- * Two guards, both of them product rules rather than taste:
+ * Three guards, all of them product rules rather than taste:
  * - **D3 / ADR 67:** the activity projection is scoped to the *active* connection, so a row owned
  *   by any other connection has no attributable state at all — it shows recency, never a light.
  *   Two connections may carry the same profile name (the fleet roster merges on that name), which
  *   is exactly why the connection is compared here and not only the profile.
+ * - **T2.2:** a `stale` row is a row whose roster read did not come back, so what it shows is the
+ *   last known state of that profile. It keeps the existing offline marker and its recency and
+ *   states nothing live: a light beside an "Offline" marker would claim two contradictory things
+ *   about the same row, and there is no age it could honestly carry instead (nothing timestamps an
+ *   observation, and none is invented here).
  * - **B4 (inside [profileLight]):** only `NeedsInput > Starting > Working` can describe a profile;
  *   transport states and process-level background work cannot, and an unattributable conversation
  *   can never light the row.
@@ -136,6 +141,9 @@ internal fun botProfileRowLight(
     val route = bot.route ?: return null
     val active = activeConnectionId?.trim()?.takeIf { it.isNotEmpty() } ?: return null
     if (route.connectionId != active) return null
+    // T2.2 — a row whose roster read did not come back keeps the existing offline marker and its
+    // recency: it states nothing live, however fresh the activity projection is.
+    if (bot.stale) return null
     return profileLight(states = states, profileKey = route.profileName, keys = bot.ownedSessionIds())
 }
 

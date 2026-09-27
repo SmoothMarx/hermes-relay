@@ -173,6 +173,35 @@ class BotModeScreenTest {
         compose.onAllNodesWithText("ago", substring = true).assertCountEquals(1)
     }
 
+    @Test
+    fun `a stale row keeps the offline marker and is never lit`() {
+        render(
+            screenState = state(
+                bots = listOf(
+                    lucy(stale = true),
+                    builder(),
+                    researcher(stale = true),
+                ),
+                groups = emptyList(),
+            ),
+            activityStates = mapOf(
+                botModeActivityKey("default", "bot-root")!! to SessionActivityState.NeedsInput,
+                botModeActivityKey("builder", "builder-bot-chat")!! to SessionActivityState.Working,
+            ),
+        )
+
+        // The marker the surface already had, kept on a stale row of the active connection and on a
+        // stale row of another gateway; the light is withheld on both, including where a state keyed
+        // to that row's own profile and id is in the snapshot (the same fixtures without `stale` are
+        // lit — see `a profile row with an attributable state shows the state instead of recency`).
+        // The non-stale Builder row is the control: the light path still reaches a row in this same
+        // render, so the two absences above are the guard and not a broken fixture.
+        compose.onAllNodesWithText("Offline").assertCountEquals(2)
+        compose.onAllNodesWithContentDescription("Needs input").assertCountEquals(0)
+        compose.onNodeWithContentDescription("Working").assertExists()
+        compose.onAllNodesWithText("ago", substring = true).assertCountEquals(2)
+    }
+
     private fun render(
         onOpenBot: (BotRosterEntry) -> Unit = {},
         onOpenGroup: (BotGroupRoom) -> Unit = {},
@@ -213,13 +242,14 @@ class BotModeScreenTest {
         ),
     )
 
-    private fun lucy() = BotRosterEntry(
+    private fun lucy(stale: Boolean = false) = BotRosterEntry(
         profile = Profile(name = "default", model = "gpt-5.6", description = "Operator"),
         displayName = "Lucy",
         route = com.hermesandroid.relay.data.BotGatewayRoute(
             key = com.hermesandroid.relay.data.BotGatewayRouteKey("home", "default"),
             connectionLabel = "Hermes",
         ),
+        stale = stale,
         canonicalSession = BotSessionSummary(
             id = "bot-root",
             preview = "Drafted a rollout plan",
@@ -227,13 +257,29 @@ class BotModeScreenTest {
         ),
     )
 
-    private fun researcher() = BotRosterEntry(
+    /** A row on the active connection whose state is attributable — the control beside the stale rows. */
+    private fun builder() = BotRosterEntry(
+        profile = Profile(name = "builder", model = "gpt-5.6", description = "Builds"),
+        displayName = "Builder",
+        route = BotGatewayRoute(
+            key = BotGatewayRouteKey("home", "builder"),
+            connectionLabel = "Hermes",
+        ),
+        canonicalSession = BotSessionSummary(
+            id = "builder-bot-chat",
+            preview = "Build complete. 3 tests added.",
+            lastActiveAtMs = NOW - 5_000L,
+        ),
+    )
+
+    private fun researcher(stale: Boolean = false) = BotRosterEntry(
         profile = Profile(name = "default", model = "gpt-5.6", description = "Research"),
         displayName = "Researcher",
         route = com.hermesandroid.relay.data.BotGatewayRoute(
             key = com.hermesandroid.relay.data.BotGatewayRouteKey("lab", "default"),
             connectionLabel = "Lab server",
         ),
+        stale = stale,
         canonicalSession = BotSessionSummary(
             id = "researcher-root",
             preview = "Findings ready",
