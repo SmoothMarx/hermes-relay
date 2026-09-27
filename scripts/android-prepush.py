@@ -53,6 +53,8 @@ FOCUSED_TESTS = (
     "com.hermesandroid.relay.network.shared.HermesClientsTest",
     "com.hermesandroid.relay.data.ConnectionDashboardFieldsTest",
     "com.hermesandroid.relay.viewmodel.BotModeRouteDirectoryBarrierTest",
+    "com.hermesandroid.relay.viewmodel.SessionActivityResolutionTest",
+    "com.hermesandroid.relay.viewmodel.SessionActivityAttributionSplitTest",
 )
 RELEASE_PREP_TESTS = (
     "com.hermesandroid.relay.screenshots.ChangelogHistoryScreenshotTest",
