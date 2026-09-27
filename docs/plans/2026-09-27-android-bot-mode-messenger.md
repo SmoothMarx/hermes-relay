@@ -319,6 +319,7 @@ Conventions: pure-JVM policy tests for logic; Robolectric Compose tests for scre
 | `com.hermesandroid.relay.viewmodel.ChatViewModelPendingAttachmentsTest` | pure JVM | a staged attachment in A never appears in B; nothing is silently dropped on switch; main-chat behavior unchanged | P4 |
 | `com.hermesandroid.relay.ui.screens.BotChatTabStripTest` | Robolectric | strip scrolls with ≥5 conversations; `selected` tracks `currentSessionId`; **no** selection under id ambiguity; badges derive from the checkpoint/queue registries (the "a switch mints no new route/ViewModel key" claim is **not** testable here and moved to §7's device rows — P2 review N4) | P5 |
 | `com.hermesandroid.relay.ui.screens.BotChatScreenBindingTest` *(exists — extend)* | Robolectric | the installed lister is the route's own; the guard logs on a profile mismatch; the media/composer/queue keys follow the bound id | P5 |
+| `com.hermesandroid.relay.ui.screens.BotChatScreenRouteDirectoryTest` *(T5.0, named by T0.2's row)* | Robolectric Compose | the screen's own `DisposableEffect` installs the lister against the **route's** client and calls `refreshSessions()` once: the route's dashboard served the profile-scoped read, the guard logs on a profile mismatch, and a switch re-keys nothing (convention `BotChatScreenBindingTest.kt:169-212`) | P5 |
 | Supervised-mode gate test (T6.3) | pure JVM or Robolectric | the sub-menu + light are absent under a hiding policy | P6 |
 | `com.hermesandroid.relay.viewmodel.BotModeRouteDirectoryBarrierTest` (T0.2, re-cast 2026-09-27) | Robolectric | the route-scoped lister is asked for the route's profile and reads it through the route's own dashboard client while the active connection's dashboard is never asked; on a cold client the readiness barrier admits the socket observation and the `session.active_list` poll only after that refresh succeeds; the exact-owner success event (`sessionDirectoryReadyEvents`) carries the route's owner | P0 |
 | `com.hermesandroid.relay.viewmodel.SessionActivityAttributionSplitTest` (T0.3, re-cast 2026-09-27) | Robolectric | the attributed / unresolved split per live row (duplicate id, no `profile` metadata, no directory owner ⇒ unresolved); an ambiguous snapshot never removes owned prior rows; `BackgroundWork` never reaches a non-attached key | P0 |
@@ -331,6 +332,7 @@ Conventions: pure-JVM policy tests for logic; Robolectric Compose tests for scre
 `com.hermesandroid.relay.screenshots.BotConversationsScreenScreenshotTest`,
 `com.hermesandroid.relay.ui.screens.BotChatTabStripTest`,
 `com.hermesandroid.relay.ui.screens.BotChatScreenBindingTest`,
+`com.hermesandroid.relay.ui.screens.BotChatScreenRouteDirectoryTest` *(T5.0's screen-level arm — named by T0.2's and T5.0's rows; registered here or the `focused` lane never runs it, 2026-09-27 pass F3)*,
 `com.hermesandroid.relay.viewmodel.connection.BotModeControllerTest` *(exists)*,
 `com.hermesandroid.relay.viewmodel.connection.BotConversationDirectoryTest`,
 `com.hermesandroid.relay.viewmodel.BotModeActivityBridgeTest`,
