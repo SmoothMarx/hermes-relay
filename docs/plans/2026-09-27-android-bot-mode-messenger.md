@@ -232,7 +232,8 @@ Every ID appears literally below. `DEFERRED` means "not in this plan", with the 
 ## 4. PHASES
 
 Task sizing is "one cheap builder turn per task". Every task names **files (anchored)**, **change intent**,
-**dependency**, **verification**, **risk**, **rollback**. Phases P2–P6 are separate PRs to `dev`.
+**dependency**, **verification**, **risk**, **rollback**. Phases P2–P7 are separate PRs to `dev` (P7 is
+numbered after the phase it depends on and lands before P6; §10's sequence is the build order).
 
 ### P0 — PROVE-FIRST (spikes; temporary wires only, removed at phase end)
 
