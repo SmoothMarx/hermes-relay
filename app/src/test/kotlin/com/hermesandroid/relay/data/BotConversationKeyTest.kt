@@ -93,9 +93,17 @@ class BotConversationKeyTest {
         // connection's projection publishes. The connection is carried beside it, and the pair
         // (connectionId, key) is what separates the two owners.
         assertEquals(here.key(), elsewhere.key())
-        assertNotEquals(here.connectionId, elsewhere.connectionId)
         assertNotEquals(here, elsewhere)
-        assertEquals(1, setOf(here.connectionId to here.key(), elsewhere.connectionId to elsewhere.key()).size)
+        // The pair (connectionId, key) is what separates the two owners, even though
+        // the profile/session half they share is identical.
+        assertNotEquals(
+            here.connectionId to here.key(),
+            elsewhere.connectionId to elsewhere.key(),
+        )
+        assertEquals(
+            2,
+            setOf(here.connectionId to here.key(), elsewhere.connectionId to elsewhere.key()).size,
+        )
     }
 
     @Test
